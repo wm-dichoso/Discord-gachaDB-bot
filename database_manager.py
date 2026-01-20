@@ -109,36 +109,123 @@ class DatabaseManager:
     
 
     # EXISTENCE CHECKS
+   
+    def game_exists(self, game_id):
+        if not self.is_connected():
+            print("Database is not connected")
+            return False
+        
+        cur = self.connection.cursor()
+        cur.execute("SELECT * FROM games WHERE game_id = ?", (game_id,))
 
-    def game_exists(self):
-        pass
+        return cur.fetchone() is not None
 
-    def banner_exists(self):
-        pass
 
-    def session_exists(self):
-        pass
+    def banner_exists(self, banner_id):
+        if not self.is_connected():
+            print("Database is not connected")
+            return False
+        
+        cur = self.connection.cursor()
+        cur.execute("SELECT * FROM banners WHERE banner_id = ?", (banner_id,))
+
+        return cur.fetchone() is not None
+
+    def session_exists(self, session_id):
+        if not self.is_connected():
+            print("Database is not connected")
+            return False
+        
+        cur = self.connection.cursor()
+        cur.execute("SELECT * FROM sessions WHERE session_id = ?", (session_id,))
+
+        return cur.fetchone() is not None
 
     # STATS HELPER
 
-    def get_current_pity(self):
-        pass
+    def get_current_pity(self, banner_id):
+        if not self.is_connected():
+            print("Database is not connected")
+            return 
+        
+        cur = self.connection.cursor()
+        cur.execute("SELECT current_pity FROM banners WHERE banner_id = ?", (banner_id,))
+        res = cur.fetchone()
+        return res[0]
 
-    def increment_pity(self):
-        pass
+    def increment_pity(self, banner_id, pity: int):
+        if not self.is_connected():
+            print("Database is not connected")
+            return 
+        
+        if not self.banner_exists(banner_id):
+            print("banner does not exists")
+            return
+        
+        cur = self.connection.cursor()
+        cur.execute("SELECT current_pity FROM banners WHERE banner_id = ?", (banner_id,))
+        res = cur.fetchone()
+        print(f"current pity is {res[0]}")
 
-    def reset_pity(self):
-        pass 
+        new_pity = int(res[0]) + pity
+
+        cur.execute("UPDATE banners SET current_pity = ? WHERE banner_id = ?", (new_pity, banner_id,))
+        print(f"pity updated from {res[0]} to {new_pity}")
+        self.connection.commit()
+
+        return cur.rowcount > 0
+
+    def reset_pity(self, banner_id, pity):
+        if not self.is_connected():
+            print("Database is not connected")
+            return 
+        
+        if not self.banner_exists(banner_id):
+            print("banner does not exists")
+            return
+        
+        cur = self.connection.cursor()
+        cur.execute("UPDATE banners SET current_pity = ? WHERE banner_id = ?", (pity, banner_id,))
+        self.connection.commit()
+
+        return cur.rowcount > 0
+ 
 
     # crud operations for the tables apparently
 
     # for the meta table !!
 
-    def get_meta(self):
-        pass
+    def get_meta_version(self):
+        if not self.is_connected():
+            print("Database is not connected")
+            return 
+        
+        cur = self.connection.cursor()
+        cur.execute("SELECT * FROM meta")
+        res = cur.fetchone()
+        return res[0]
+    
+    def add_version(self, version):
+        if not self.is_connected():
+            print("Database is not connected")
+            return 
+        
+        cur = self.connection.cursor()
+        cur.execute("INSERT INTO meta (version, created_at, last_modified) VALUES (?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)", (version,))
+        self.connection.commit()
+        print(f"version {version} is added to the meta")
 
-    def update_meta(self):
-        pass
+    def update_version(self, version):
+        if not self.is_connected():
+            print("Database is not connected")
+            return 
+        
+        cur = self.connection.cursor()
+        cur.execute("UPDATE meta SET last_modified = CURRENT_TIMESTAMP WHERE version = ?", (version,))
+        # UPDATE banners SET current_pity = ? WHERE banner_id = ?
+        self.connection.commit()
+
+        return cur.rowcount > 0
 
     # for the games !!
     # should be able to: add new games, list all the games on the table, get a particular game 
