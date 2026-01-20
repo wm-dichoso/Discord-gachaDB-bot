@@ -106,8 +106,39 @@ class DatabaseManager:
         self.connection.commit()
         self.connection.close()
         return True
+    
+
+    # EXISTENCE CHECKS
+
+    def game_exists(self):
+        pass
+
+    def banner_exists(self):
+        pass
+
+    def session_exists(self):
+        pass
+
+    # STATS HELPER
+
+    def get_current_pity(self):
+        pass
+
+    def increment_pity(self):
+        pass
+
+    def reset_pity(self):
+        pass 
 
     # crud operations for the tables apparently
+
+    # for the meta table !!
+
+    def get_meta(self):
+        pass
+
+    def update_meta(self):
+        pass
 
     # for the games !!
     # should be able to: add new games, list all the games on the table, get a particular game 
@@ -136,7 +167,7 @@ class DatabaseManager:
     def get_banner(self):
         pass
 
-    def get_banner_for_a_game(self):
+    def get_game_banners(self):
         pass
 
     def update_banner_info(self):
@@ -161,8 +192,28 @@ class DatabaseManager:
     def add_session(self):
         pass
 
+    def end_session(self):
+        pass
+
     def browse_sessions(self):
         pass
 
+    def add_session_break(self):
+        pass
+
+    def end_session_break(self):
+        pass
+
+    def get_breaks_for_session(self):
+        pass
+
     def delete_sessions(self):
+        pass
+
+    # for the settings table !!
+
+    def get_settings(self):
+        pass
+
+    def update_settings(self):
         pass
