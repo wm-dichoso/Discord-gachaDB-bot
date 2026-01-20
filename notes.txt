@@ -1,0 +1,49 @@
+visualization ?
+
+DatabaseManager
+│
+├── Core
+│   ├── connect_db
+│   ├── create_tables
+│   └── is_connected
+│
+├── Games
+│   ├── add_game
+│   ├── get_game
+│   ├── get_game_by_channel
+│   ├── list_games
+│   ├── update_game
+│   └── delete_game
+│
+├── Banners
+│   ├── add_banner
+│   ├── get_banner
+│   ├── list_banners_for_game
+│   ├── update_banner_info
+│   └── delete_banner
+│
+├── Pulls
+│   ├── add_pull
+│   ├── get_pulls
+│   ├── get_pulls_by_banner
+│   ├── get_pulls_paginated
+│   └── delete_pull
+│
+├── Sessions
+│   ├── start_session
+│   ├── end_session
+│   ├── browse_sessions
+│   └── delete_session
+│
+├── Breaks
+│   ├── add_session_break
+│   ├── end_session_break
+│   └── get_breaks_for_session
+│
+├── Settings
+│   ├── get_settings
+│   └── update_settings
+│
+└── Meta
+    ├── get_meta
+    └── update_meta

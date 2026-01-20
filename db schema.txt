@@ -1,0 +1,43 @@
+
+tables:	
+- meta
+  - version
+  - created at
+  - last modified
+
+- games
+  - game id (primary key)
+  - game name
+  - channel id
+
+- banners
+  - banner id(pk)
+  - game id
+  - banner name
+  - current pity
+  - last updated
+
+- pull history
+  - pull id (pk)
+  - banner id (foreign key to banner id)
+  - game id (fk to game)
+  - entry name
+  - pity
+  - notes
+  - timestamp
+
+- sessions
+  - session id 
+  - session name
+  - start time
+  - end time 
+
+- session breaks
+  - break id (pk)
+  - sessions id (fk to sessions)
+  - break start
+  - break end
+
+- settings
+  - pagination size
+  - features enabled
