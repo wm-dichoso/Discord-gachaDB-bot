@@ -2,42 +2,43 @@
 tables:	
 - meta
   - version
-  - created at
-  - last modified
+  - created_at
+  - last_modified
 
 - games
-  - game id (primary key)
-  - game name
-  - channel id
+  - game_id (primary key)
+  - game_name
+  - channel_id
 
 - banners
-  - banner id(pk)
-  - game id
-  - banner name
-  - current pity
-  - last updated
+  - banner_id (pk)
+  - game_id
+  - banner_name
+  - current_pity
+  - max_pity
+  - last_updated
 
 - pull history
-  - pull id (pk)
-  - banner id (foreign key to banner id)
-  - game id (fk to game)
-  - entry name
+  - pull_id (pk)
+  - banner_id (foreign key to banner id)
+  - game_id (fk to game)
+  - entry_name
   - pity
   - notes
   - timestamp
 
 - sessions
-  - session id 
-  - session name
-  - start time
-  - end time 
+  - session_id 
+  - session_name
+  - start_time
+  - end_time 
 
 - session breaks
-  - break id (pk)
-  - sessions id (fk to sessions)
-  - break start
-  - break end
+  - break_id (pk)
+  - session_id (fk to sessions)
+  - break_start
+  - break_end
 
 - settings
-  - pagination size
-  - features enabled
+  - pagination_size
+  - features_enabled
