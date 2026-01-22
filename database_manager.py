@@ -505,31 +505,132 @@ class DatabaseManager:
 
     # for the session history !!
     # add new session, browse history of sessions, delete session
-    def add_session(self):
-        pass
+    # SQLITE CURRENT_TIMESTAMP DEFAULTS TO UTC. JUST CONVERT IT TO LOCAL TIME VIA BACKEND XD
 
-    def end_session(self):
-        pass
+    def start_session(self, session_name):
+        if not self.is_connected():
+            print("Database is not connected")
+            return False 
+                
+        with self.connection:        
+            cur = self.connection.cursor()            
+            cur.execute("""
+                INSERT INTO sessions (session_id, session_name) VALUES (?)
+            """, (session_name))
+            print(f"Added new session")
+            return cur.rowcount > 0
+
+    def end_session(self, session_id, end_time):
+        if not self.is_connected():
+            print("Database is not connected")
+            return False 
+        
+        if not self.session_exists(session_id):
+            print(f"session id: {session_id} does not exists.")
+            return False
+        
+        with self.connection:        
+            cur = self.connection.cursor()
+            cur.execute("UPDATE sessions SET end_time = ? WHERE session_id = ?", (end_time, session_id,))
+            return cur.rowcount > 0
 
     def browse_sessions(self):
-        pass
+        if not self.is_connected():
+            print("Database is not connected")
+            return False 
+        
+        cur = self.connection.cursor()
+        cur.execute("SELECT * FROM sessions")
+        return cur.fetchall()
 
-    def add_session_break(self):
-        pass
+    def add_session_break(self, session_id):
+        if not self.is_connected():
+            print("Database is not connected")
+            return False 
+                
+        with self.connection:        
+            cur = self.connection.cursor()            
+            cur.execute("""
+                INSERT INTO session_breaks (session_id) VALUES (?)
+            """, (session_id))
+            print(f"Added new session break for the session id: {session_id}")
+            return cur.rowcount > 0
 
-    def end_session_break(self):
-        pass
+    def end_session_break(self, break_session_id):
+        if not self.is_connected():
+            print("Database is not connected")
+            return False 
+        
+        if not self.break_session_exists(break_session_id):
+            print(f"break session id: {break_session_id} does not exists.")
+            return False
+        
+        with self.connection:        
+            cur = self.connection.cursor()
+            cur.execute("UPDATE session_breaks SET break_end = CURRENT_TIMESTAMP WHERE break_id = ?", (break_session_id,))
+            return cur.rowcount > 0
 
-    def get_breaks_for_session(self):
-        pass
+    def get_breaks_for_session(self, session_id):
+        if not self.is_connected():
+            print("Database is not connected")
+            return False 
+        
+        if not self.break_session_exists(session_id):
+            print(f"session id: {session_id} does not exists")
+            return False
+        
+        cur = self.connection.cursor()
+        cur.execute("SELECT break_start, break_end FROM session_breaks WHERE session_id = ?", (session_id,))
+        return cur.fetchall()
 
-    def delete_sessions(self):
-        pass
+    def delete_session(self, session_id):
+        if not self.is_connected():
+            print("Database is not connected")
+            return False
+        
+        if not self.session_exists(session_id):
+            print(f"Cannot be deleted. session id: {session_id} does not exist.")
+            return False
+        
+        with self.connection:        
+            cur = self.connection.cursor()
+            cur.execute("DELETE FROM sessions WHERE session_id = ?", (session_id,))
+            return cur.rowcount > 0
+        
+    def delete_break_session(self, break_id):
+            if not self.is_connected():
+                print("Database is not connected")
+                return False
+            
+            if not self.break_session_exists(break_id):
+                print(f"Cannot be deleted. break session id: {break_id} does not exist.")
+                return False
+            
+            with self.connection:
+                cur = self.connection.cursor()
+                cur.execute("DELETE FROM session_breaks WHERE break_id = ?", (break_id,))
+
+                # TODO: we also have to decrease the total break time on session lol
+
+                return cur.rowcount > 0
 
     # for the settings table !!
 
     def get_settings(self):
-        pass
+        if not self.is_connected():
+            print("Database is not connected")
+            return None 
+        
+        cur = self.connection.cursor()
+        cur.execute("SELECT * FROM settings")
+        return cur.fetchall()
 
-    def update_settings(self):
-        pass
+    def update_pagination(self,p_size):
+        if not self.is_connected():
+            print("Database is not connected")
+            return None 
+        
+        with self.connection:        
+            cur = self.connection.cursor()
+            cur.execute("UPDATE settings SET pagination_size = ? WHERE id = 1",(p_size,))
+            return cur.rowcount > 0

@@ -32,6 +32,7 @@ tables:
   - session_name
   - start_time
   - end_time 
+  - total_break_time
 
 - session breaks
   - break_id (pk)
