@@ -1,5 +1,6 @@
 import sqlite3
 import os
+from help import Result
 
 
 class DatabaseManager:
@@ -13,25 +14,33 @@ class DatabaseManager:
             # this is the database connection !!
             self.connection = sqlite3.connect(self.db_path)
 
+            db_message = ""
             if file_exists:
-                print(f"Connected to the database: {self.db_path}")
+                db_message = f"Connected to the database: {self.db_path}"
             else:
-                print(f"New database created in: {self.db_path}")
+                db_message= f"New database created in: {self.db_path}"
 
-            return True
+            return Result.ok(
+                code="DB_CONNECTED",
+                message= db_message
+            )
 
         except sqlite3.Error as e:
-            print("Failed to connect to database")
-            print(e)
-            return False
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error occurred while connecting",
+                error=str(e)
+            )
 
     def is_connected(self):
         return self.connection is not None
         
     def create_tables(self):
         if not self.is_connected():
-            print("Database is not connected")
-            return False
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't create table: Failed to connect to the database"
+            )
         
         cur = self.connection.cursor()
         # tables for games, banner_name, pull_history, sessions, settings
@@ -59,6 +68,7 @@ class DatabaseManager:
                     game_id INTEGER,
                     banner_name TEXT NOT NULL,
                     current_pity INTEGER DEFAULT 0,
+                    max_pity INTEGER DEFAULT 0,
                     last_updated TEXT DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (game_id) REFERENCES games(game_id)
                 );
@@ -95,25 +105,33 @@ class DatabaseManager:
 
                 -- Settings table
                 CREATE TABLE IF NOT EXISTS settings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
                     pagination_size INTEGER DEFAULT 10,
                     features_enabled TEXT DEFAULT '{}'
                 );
                 """)
         except sqlite3.OperationalError as e:
-            print(f"SQLite error occurred: {e}")
-            return False
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error occurred during table creation",
+                error=str(e)
+            )
         
         self.connection.commit()
-        self.connection.close()
-        return True
+        return Result.ok(
+            code="TABLES_READY",
+            message="Database tables are ready"
+        )
     
 
     # EXISTENCE CHECKS
    
     def game_exists(self, game_id):
         if not self.is_connected():
-            print("Database is not connected")
-            return False
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't check if game exists: Failed to connect to the database"
+            )
         
         cur = self.connection.cursor()
         cur.execute("SELECT * FROM games WHERE game_id = ?", (game_id,))
@@ -122,8 +140,10 @@ class DatabaseManager:
     
     def game_exists_with_name(self, game_name):
         if not self.is_connected():
-            print("Database is not connected")
-            return False
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't check if game exists with name: Failed to connect to the database"
+            )
         
         cur = self.connection.cursor()
         cur.execute("SELECT * FROM games WHERE game_name = ?", (game_name,))
@@ -132,38 +152,46 @@ class DatabaseManager:
 
     def game_exists_with_channel_ID(self, channel_id):        
         if not self.is_connected():
-            print("Database is not connected")
-            return False
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't check if game exists with channel id: Failed to connect to the database"
+            )
         
         cur = self.connection.cursor()
-        cur.execute("SELECT * FROM games WHERE game_name = ?", (channel_id,))
+        cur.execute("SELECT * FROM games WHERE channel_id = ?", (channel_id,))
 
         return cur.fetchone() is not None
 
     def banner_exists(self, banner_id):
         if not self.is_connected():
-            print("Database is not connected")
-            return False
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't check if banner exists: Failed to connect to the database"
+            )
         
         cur = self.connection.cursor()
         cur.execute("SELECT * FROM banners WHERE banner_id = ?", (banner_id,))
 
         return cur.fetchone() is not None
     
-    def banner_name_exists(self, game_id, banner_name):
+    def banner_name_exists(self, banner_name):
         if not self.is_connected():
-            print("Database is not connected")
-            return False
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't check if banner name exists: Failed to connect to the database"
+            )
         
         cur = self.connection.cursor()
-        cur.execute("SELECT * FROM banners WHERE banner_name = ? AND game_id = ?", (banner_name, game_id,))
+        cur.execute("SELECT * FROM banners WHERE banner_name = ?", (banner_name,))
 
         return cur.fetchone() is not None
 
     def pull_entry_exists(self, pull_id):
         if not self.is_connected():
-            print("Database is not connected")
-            return False
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't check of pull entry exists: Failed to connect to the database"
+            )
         
         cur = self.connection.cursor()
         cur.execute("SELECT * FROM pull_history WHERE pull_id = ?",(pull_id,))
@@ -172,11 +200,25 @@ class DatabaseManager:
     
     def session_exists(self, session_id):
         if not self.is_connected():
-            print("Database is not connected")
-            return False
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't check if session exists: Failed to connect to the database"
+            )
         
         cur = self.connection.cursor()
         cur.execute("SELECT * FROM sessions WHERE session_id = ?", (session_id,))
+
+        return cur.fetchone() is not None
+    
+    def break_session_exists(self, break_id):
+        if not self.is_connected():
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't check break session: Failed to connect to the database"
+            )
+        
+        cur = self.connection.cursor()
+        cur.execute("SELECT * FROM session_breaks WHERE break_id = ?", (break_id,))
 
         return cur.fetchone() is not None
 
@@ -184,48 +226,73 @@ class DatabaseManager:
 
     def get_current_pity(self, banner_id):
         if not self.is_connected():
-            print("Database is not connected")
-            return 
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't get current pity for the banner: Failed to connect to the database"
+            ) 
         
         cur = self.connection.cursor()
         cur.execute("SELECT current_pity FROM banners WHERE banner_id = ?", (banner_id,))
         res = cur.fetchone()
-        return res[0]
+        return Result.ok(
+                code="BANNER_PITY_OBTAINED",
+                message="Banner pity retrieved successfully",
+                data=res[0]
+            )
+    
+    # def increment_pity(self, banner_id, pity: int):
+    # # this function maybe redo or remove this XD,
+    # # we already have update pity which is update_pity so lets just use that !!
+    #     if not self.is_connected():
+    #         return Result.fail(
+    #             code="DB_CONNECTION_FAILED",
+    #             message="Couldn't increment pity: Failed to connect to the database"
+    #         ) 
+        
+    #     if not self.banner_exists(banner_id):
+    #         print("banner does not exists")
+    #         return
+        
+    #     with self.connection:        
+    #         cur = self.connection.cursor()
+    #         cur.execute("SELECT current_pity FROM banners WHERE banner_id = ?", (banner_id,))
+    #         res = cur.fetchone()
+    #         print(f"current pity is {res[0]}")
 
-    def increment_pity(self, banner_id, pity: int):
+    #         new_pity = int(res[0]) + pity
+
+    #         cur.execute("UPDATE banners SET current_pity = ? WHERE banner_id = ?", (new_pity, banner_id,))
+    #         print(f"pity updated from {res[0]} to {new_pity}")
+    #         return cur.rowcount > 0
+
+    def update_pity(self, banner_id, pity):
         if not self.is_connected():
-            print("Database is not connected")
-            return 
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't update pity: Failed to connect to the database"
+            ) 
         
         if not self.banner_exists(banner_id):
             print("banner does not exists")
-            return
-        
-        with self.connection:        
-            cur = self.connection.cursor()
-            cur.execute("SELECT current_pity FROM banners WHERE banner_id = ?", (banner_id,))
-            res = cur.fetchone()
-            print(f"current pity is {res[0]}")
-
-            new_pity = int(res[0]) + pity
-
-            cur.execute("UPDATE banners SET current_pity = ? WHERE banner_id = ?", (new_pity, banner_id,))
-            print(f"pity updated from {res[0]} to {new_pity}")
-            return cur.rowcount > 0
-
-    def reset_pity(self, banner_id, pity):
-        if not self.is_connected():
-            print("Database is not connected")
-            return 
-        
-        if not self.banner_exists(banner_id):
-            print("banner does not exists")
-            return
+            return Result.fail(
+                code="BANNER_NOT_FOUND",
+                message="Couldn't update pity: Banner does not exist"
+            ) 
         
         with self.connection:
             cur = self.connection.cursor()
             cur.execute("UPDATE banners SET current_pity = ? WHERE banner_id = ?", (pity, banner_id,))
-            return cur.rowcount > 0
+            if not cur.rowcount > 0:
+                return Result.fail(
+                    code="BANNER_PITY_UPDATE_FAIL",
+                    message="Couldn't update pity"
+                ) 
+            else:
+                return Result.ok(
+                code="BANNER_PITY_UPDATED",
+                message="Updated banner's current pity"
+            )
+
  
 
     # crud operations for the tables apparently
@@ -234,35 +301,74 @@ class DatabaseManager:
 
     def get_meta_version(self):
         if not self.is_connected():
-            print("Database is not connected")
-            return 
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't get meta version: Failed to connect to the database"
+            ) 
         
         cur = self.connection.cursor()
         cur.execute("SELECT * FROM meta")
         res = cur.fetchone()
-        return res[0]
+        if res is None:
+            return Result.fail(
+                code="META_FETCH_FAILED",
+                message="Couldn't get meta version"
+            ) 
+        else: 
+            return Result.ok(
+                code="META_FETCH_SUCCESS",
+                message="successfully obtained meta version",
+                data=res[0]
+            )
     
     def add_version(self, version):
         if not self.is_connected():
-            print("Database is not connected")
-            return 
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't add version: Failed to connect to the database"
+            ) 
         
         with self.connection:        
             cur = self.connection.cursor()
-            cur.execute("INSERT INTO meta (version, created_at, last_modified) VALUES (?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)", (version,))
-            print(f"version {version} is added to the meta")
+            # check if version already exists !
+            cur.execute("SELECT version FROM meta WHERE version = ?", (version,))
+            res = cur.fetchone()
+            if res is None:
+                return Result.fail(
+                code="VERSION_ADD_FAIL",
+                message="Couldn't add version: version already exists"
+            )
+            else: 
+                cur.execute("INSERT INTO meta (version, created_at, last_modified) VALUES (?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)", (version,))
+                return Result.ok(
+                    code="VERSION_ADDED",
+                    message=f"version {version} is added to the meta"
+                )
 
     def update_version(self, version):
         if not self.is_connected():
-            print("Database is not connected")
-            return False 
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't update version: Failed to connect to the database"
+            ) 
         
-        cur = self.connection.cursor()
-        cur.execute("UPDATE meta SET last_modified = CURRENT_TIMESTAMP WHERE version = ?", (version,))
-        self.connection.commit()
+        with self.connection:
+            cur = self.connection.cursor()
+            # check if version already exists !
+            cur.execute("SELECT version FROM meta WHERE version = ?", (version,))
+            res = cur.fetchone()
+            if res is None:
+                return Result.fail(
+                    code="VERSION_ADD_FAIL",
+                    message="Couldn't add version: version already exists"
+                )
+            else:
+                cur.execute("UPDATE meta SET last_modified = CURRENT_TIMESTAMP WHERE version = ?", (version,))
+                return Result.ok(
+                    code="VERSION_UPDATED",
+                    message="Version update successfully!"
+                )
 
-        return cur.rowcount > 0
-    
     # endregion
 
     #region for the games !!
@@ -270,83 +376,162 @@ class DatabaseManager:
     # and display some info, update a game info, delete the game from the table.
     def add_games(self, game, ch_id):
         if not self.is_connected():
-            print("Database is not connected")
-            return False 
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't add game: Failed to connect to the database"
+            ) 
         
         # check if game already exists 
         if self.game_exists_with_name(game):
-            print(f"Game {game} already exists")
-            return False
+            return Result.fail(
+                code="GAME_ALREADY_EXISTS",
+                message="A game already exists for this channel"
+            )
         
         with self.connection:        
             cur = self.connection.cursor()
             cur.execute("INSERT INTO games (game_name, channel_id) VALUES (?, ?)", (game, ch_id,))
-            print(f"Game {game} is added to the games table")
-            return cur.rowcount > 0
+            if not cur.rowcount > 0:
+                return Result.fail(
+                    code="GAME_CREATE_FAILED",
+                    message="Failed to add game"
+                )
+            else:
+                return Result.ok(
+                    code="GAME_CREATED",
+                    message="Game added successfully"
+                )
 
     def get_game_by_id(self, game_id):
         if not self.is_connected():
-            print("Database is not connected")
-            return 
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't get game by id: Failed to connect to the database"
+            )
         
-        if not self.game_exists():
-            print(f"game with game id: {game_id} does not exists.")
-            return
+        if not self.game_exists(game_id):
+            return Result.fail(
+                code="GAME_NOT_FOUND",
+                message=f"game with game id: {game_id} does not exists."
+            )
         
         cur = self.connection.cursor()
         cur.execute("SELECT * FROM games WHERE game_id = ?",(game_id,))
-        return cur.fetchone()
+        res = cur.fetchone()
+        if res is None:
+            return Result.fail(
+                code="GAME_NOT_FOUND",
+                message=f"Game with game id: {game_id} does not exists."
+            )
+        else:
+            return Result.ok(
+                    code="GAME_FOUND",
+                    message="Game retrieved successfully",
+                    data=res
+                )
         
     def list_games(self):
         if not self.is_connected():
-            print("Database is not connected")
-            return 
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't list games: Failed to connect to the database"
+            ) 
         
         cur = self.connection.cursor()
         cur.execute("SELECT game_name FROM games")
-        return cur.fetchall()
+        res = cur.fetchall()
+        if res is None:
+            return Result.fail(
+                code="NO_GAMES_FOUND",
+                message="No games found"
+            ) 
+        else:
+            return Result.ok(
+                    code="GAMES_LISTED",
+                    message="Games retrieved successfully",
+                    data=res
+                )
 
     def update_game_name(self, game_id, game_name):        
         if not self.is_connected():
-            print("Database is not connected")
-            return False 
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="couldn't update game name: Failed to connect to the database"
+            ) 
         
-        if not self.game_exists():
-            print(f"game with game id: {game_id} does not exists.")
-            return False
+        if not self.game_exists(game_id):
+            return Result.fail(
+                code="GAME_NOT_FOUND",
+                message=f"Game with id: {game_id} does not exists."
+            )
         
         with self.connection:        
             cur = self.connection.cursor()
             cur.execute("UPDATE games SET game_name = ? WHERE game_id = ?", (game_name, game_id,))
-            return cur.rowcount > 0
+            if not cur.rowcount > 0:
+                return Result.fail(
+                    code="GAME_UPDATE_FAILED",
+                    message="Failed to update game name"
+                )
+            else:
+                return Result.ok(
+                    code="GAME_UPDATED",
+                    message="Game name updated successfully"
+                )
 
     def update_game_channel(self, game_id, channel_id):
         if not self.is_connected():
-            print("Database is not connected")
-            return False 
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't update game channel id: Failed to connect to the database"
+            ) 
         
-        if not self.game_exists():
-            print(f"game with game id: {game_id} does not exists.")
-            return False
+        if not self.game_exists(game_id):
+            return Result.fail(
+                code="GAME_NOT_FOUND",
+                message=f"game with game id: {game_id} does not exists."
+            )
         
         with self.connection:        
             cur = self.connection.cursor()
             cur.execute("UPDATE games SET channel_id = ? WHERE game_id = ?", (channel_id, game_id,))
-            return cur.rowcount > 0
+            if not cur.rowcount > 0:
+                return Result.fail(
+                    code="GAME_UPDATE_FAILED",
+                    message="Failed to update game channel"
+                )
+            else:
+                return Result.ok(
+                    code="GAME_UPDATED",
+                    message="Game channel updated successfully"
+                )
 
     def delete_game(self, game_id):
         if not self.is_connected():
-            print("Database is not connected")
-            return False 
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't delete game: Failed to connect to the database"
+            ) 
         
-        if not self.game_exists():
-            print(f"game with game id: {game_id} does not exists.")
-            return False
+        if not self.game_exists(game_id):
+            return Result.fail(
+                code="GAME_NOT_FOUND",
+                message=f"game with game id: {game_id} does not exists."
+            )
         
         with self.connection:        
             cur = self.connection.cursor()
             cur.execute("DELETE FROM games WHERE game_id = ?", (game_id,))
-            return cur.rowcount > 0
+            if not cur.rowcount > 0:
+                return Result.fail(
+                    code="GAME_DELETE_FAILED",
+                    message="Failed to delete game"
+                )
+            else:
+                return Result.ok(
+                    code="GAME_DELETED",
+                    message="Game deleted successfully"
+                )
         
     # endregion
 
@@ -356,108 +541,204 @@ class DatabaseManager:
 
     def add_banner(self, game_id, banner_name, current_pity, max_pity):
         if not self.is_connected():
-            print("Database is not connected")
-            return False 
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't add banner: Failed to connect to the database"
+            ) 
         
         # check if banner already exists first 
-        if self.banner_name_exists(game_id, banner_name):
-            print(f"Banner: {banner_name} already exists on the game id: {game_id}")
-            return False
+        if self.banner_name_exists(banner_name):
+            return Result.fail(
+                code="BANNER_ALREADY_EXISTS",
+                message="A banner already exists with this name"
+            )
         
         with self.connection:        
             cur = self.connection.cursor()
             cur.execute("INSERT INTO banners (game_id, banner_name, current_pity, max_pity) VALUES (?, ?, ?, ?)", (game_id, banner_name,current_pity, max_pity,))
-            print(f"Banner: {banner_name} is added to db")
-            return cur.rowcount > 0
+            if not cur.rowcount > 0:
+                return Result.fail(
+                        code="BANNER_CREATE_FAILED",
+                        message="Failed to add banner"
+                    )
+            else:
+                return Result.ok(
+                    code="BANNER_CREATED",
+                    message="Banner added successfully"
+                )
 
     def get_banner(self, banner_id):
         if not self.is_connected():
-            print("Database is not connected")
-            return 
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't get banner: Failed to connect to the database"
+            ) 
         
         cur = self.connection.cursor()
         cur.execute("SELECT * FROM banners WHERE banner_id = ?", (banner_id,))
         res = cur.fetchone()
-        return res
+        if res is None:
+            return Result.fail(
+                code="BANNER_NOT_FOUND",
+                message="Banner not found"
+            ) 
+        else:
+            return Result.ok(
+                code="BANNER_FOUND",
+                message="Banner retrieved successfully",
+                data=res
+            )
 
     def get_game_banners(self, game_id):
         if not self.is_connected():
-            print("Database is not connected")
-            return False 
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't get game banners: Failed to connect to the database"
+            ) 
         
         if not self.game_exists(game_id):
             print(f"Game id: {game_id} does not exists")
-            return False
+            return Result.fail(
+                code="GAME_NOT_FOUND",
+                message="Game does not exist"
+            ) 
         
         cur = self.connection.cursor()
         cur.execute("SELECT banner_name, current_pity, last_updated FROM banners WHERE game_id = ?", (game_id,))
-        return cur.fetchall()
+        res = cur.fetchall()
+        if res is None:
+            return Result.fail(
+                code="NO_BANNERS_FOUND",
+                message="No banners found for this game"
+            ) 
+        else:
+            return Result.ok(
+                code="BANNERS_LISTED",
+                message="Banners retrieved successfully",
+                data=res
+            )
 
     def update_banner_name(self, banner_id, new_banner_name):
         if not self.is_connected():
-            print("Database is not connected")
-            return False 
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't update banner name: Failed to connect to the database"
+            ) 
         
-        if not self.banner_exists():
-            print(f"Banner with banner id: {banner_id} does not exists.")
-            return False
+        if not self.banner_exists(banner_id):
+            return Result.fail(
+                code="BANNER_NOT_FOUND",
+                message=f"Banner with banner id: {banner_id} does not exists."
+            ) 
         
         with self.connection:        
             cur = self.connection.cursor()
             cur.execute("UPDATE banners SET banner_name = ? WHERE banner_id = ?", (new_banner_name, banner_id,))
-            return cur.rowcount > 0
+            if not cur.rowcount > 0:
+                return Result.fail(
+                code="BANNER_UPDATE_FAILED",
+                message="Failed to update banner name"
+            ) 
+            else:
+                return Result.ok(
+                    code="BANNER_UPDATED",
+                    message="Banner updated successfully"
+                )
+            
 
     def update_banner_pity(self, banner_id, new_pity):
+        # already have update pity, why bother again XD
         if not self.is_connected():
-            print("Database is not connected")
-            return False 
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't update banner pity: Failed to connect to the database"
+            ) 
         
-        if not self.banner_exists():
-            print(f"Banner with banner id: {banner_id} does not exists.")
-            return False
+        if not self.banner_exists(banner_id):
+            return Result.fail(
+                code="BANNER_NOT_FOUND",
+                message=f"Banner with banner id: {banner_id} does not exists."
+            ) 
         
         with self.connection:        
             cur = self.connection.cursor()
             cur.execute("UPDATE banners SET current_pity = ? WHERE banner_id = ?", (new_pity, banner_id,))
-            return cur.rowcount > 0
+            if not cur.rowcount > 0:
+                return Result.fail(
+                code="BANNER_PITY_UPDATE_FAILED",
+                message="Couldn't update banner pity"
+            ) 
+            else:
+                return Result.ok(
+                    code="BANNER_PITY_UPDATED",
+                    message="Banner pity updated successfully"
+                )
     
     def update_banner_max_pity(self, banner_id, new_max_pity):
         if not self.is_connected():
-            print("Database is not connected")
-            return False 
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't update banner's max pity: Failed to connect to the database"
+            ) 
         
-        if not self.banner_exists():
-            print(f"Banner with banner id: {banner_id} does not exists.")
-            return False
+        if not self.banner_exists(banner_id):
+            return Result.fail(
+                code="BANNER_NOT_FOUND",
+                message=f"Banner with banner id: {banner_id} does not exists."
+            ) 
         
         with self.connection:        
             cur = self.connection.cursor()
             cur.execute("UPDATE banners SET max_pity = ? WHERE banner_id = ?", (new_max_pity, banner_id,))
-            return cur.rowcount > 0
+            if not cur.rowcount > 0:
+                return Result.fail(
+                code="BANNER_MAXPITY_UPDATE_FAILED",
+                message="Couldn't update banner pity"
+            ) 
+            else:
+                return Result.ok(
+                    code="BANNER_MAXPITY_UPDATED",
+                    message="Banner pity updated successfully"
+                )
 
     def delete_banner(self, banner_id):
         if not self.is_connected():
-            print("Database is not connected")
-            return False 
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't delete banner: Failed to connect to the database"
+            ) 
         
         if not self.banner_exists(banner_id):
-            print(f"Cannot be deleted. Banner with banner id: {banner_id} does not exists.")
-            return False
+            return Result.fail(
+                code="BANNER_NOT_FOUND",
+                message=f"Banner with banner id: {banner_id} does not exists."
+            ) 
         
         with self.connection:        
             cur = self.connection.cursor()
             cur.execute("DELETE FROM banners WHERE banner_id = ?", (banner_id,))
-            return cur.rowcount > 0
+            if not cur.rowcount > 0:
+                return Result.fail(
+                code="BANNER_DELETE_FAILED",
+                message="Failed to delete banner"
+            ) 
+            else:
+                return Result.ok(
+                    code="BANNER_DELETED",
+                    message="Banner deleted successfully"
+                )
         
     # endregion
 
-    # for the pull history !!
+    # for the pull history !! <------ do this for result stuff !!!
     # browse a list history of a particular banner, delete an entry
 
     def add_pull(self, entry_name, banner_id, pity, notes):
         if not self.is_connected():
-            print("Database is not connected")
-            return False 
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't add pull entry: Failed to connect to the database"
+            ) 
         
         # check if banner for this pull actually xists 
         if not self.banner_exists(banner_id):
@@ -478,8 +759,10 @@ class DatabaseManager:
 
     def get_pulls_by_banner(self, banner_id):
         if not self.is_connected():
-            print("Database is not connected")
-            return False 
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't get pulls by the banner: Failed to connect to the database"
+            ) 
         
         if not self.banner_exists(banner_id):
             print(f"banner id: {banner_id} does not exists")
@@ -491,8 +774,10 @@ class DatabaseManager:
         
     def delete_pull(self, pull_id):
         if not self.is_connected():
-            print("Database is not connected")
-            return False
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't delete pull entry: Failed to connect to the database"
+            )
         
         if not self.pull_entry_exists(pull_id):
             print(f"Cannot be deleted. pull entry id: {pull_id} does not exist.")
@@ -509,21 +794,25 @@ class DatabaseManager:
 
     def start_session(self, session_name):
         if not self.is_connected():
-            print("Database is not connected")
-            return False 
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't start session: Failed to connect to the database"
+            )
                 
         with self.connection:        
             cur = self.connection.cursor()            
             cur.execute("""
-                INSERT INTO sessions (session_id, session_name) VALUES (?)
+                INSERT INTO sessions (session_name) VALUES (?)
             """, (session_name))
             print(f"Added new session")
             return cur.rowcount > 0
 
     def end_session(self, session_id, end_time):
         if not self.is_connected():
-            print("Database is not connected")
-            return False 
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't end session: Failed to connect to the database"
+            ) 
         
         if not self.session_exists(session_id):
             print(f"session id: {session_id} does not exists.")
@@ -536,8 +825,10 @@ class DatabaseManager:
 
     def browse_sessions(self):
         if not self.is_connected():
-            print("Database is not connected")
-            return False 
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't get sessions: Failed to connect to the database"
+            ) 
         
         cur = self.connection.cursor()
         cur.execute("SELECT * FROM sessions")
@@ -545,8 +836,10 @@ class DatabaseManager:
 
     def add_session_break(self, session_id):
         if not self.is_connected():
-            print("Database is not connected")
-            return False 
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't add session break: Failed to connect to the database"
+            ) 
                 
         with self.connection:        
             cur = self.connection.cursor()            
@@ -558,8 +851,10 @@ class DatabaseManager:
 
     def end_session_break(self, break_session_id):
         if not self.is_connected():
-            print("Database is not connected")
-            return False 
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't end session's break: Failed to connect to the database"
+            ) 
         
         if not self.break_session_exists(break_session_id):
             print(f"break session id: {break_session_id} does not exists.")
@@ -572,10 +867,12 @@ class DatabaseManager:
 
     def get_breaks_for_session(self, session_id):
         if not self.is_connected():
-            print("Database is not connected")
-            return False 
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't get breaks for the session: Failed to connect to the database"
+            ) 
         
-        if not self.break_session_exists(session_id):
+        if not self.session_exists(session_id):
             print(f"session id: {session_id} does not exists")
             return False
         
@@ -585,8 +882,10 @@ class DatabaseManager:
 
     def delete_session(self, session_id):
         if not self.is_connected():
-            print("Database is not connected")
-            return False
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't delete session: Failed to connect to the database"
+            )
         
         if not self.session_exists(session_id):
             print(f"Cannot be deleted. session id: {session_id} does not exist.")
@@ -598,28 +897,32 @@ class DatabaseManager:
             return cur.rowcount > 0
         
     def delete_break_session(self, break_id):
-            if not self.is_connected():
-                print("Database is not connected")
-                return False
+        if not self.is_connected():
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't delete break session: Failed to connect to the database"
+            )
             
-            if not self.break_session_exists(break_id):
-                print(f"Cannot be deleted. break session id: {break_id} does not exist.")
-                return False
-            
-            with self.connection:
-                cur = self.connection.cursor()
-                cur.execute("DELETE FROM session_breaks WHERE break_id = ?", (break_id,))
+        if not self.break_session_exists(break_id):
+            print(f"Cannot be deleted. break session id: {break_id} does not exist.")
+            return False
+        
+        with self.connection:
+            cur = self.connection.cursor()
+            cur.execute("DELETE FROM session_breaks WHERE break_id = ?", (break_id,))
 
-                # TODO: we also have to decrease the total break time on session lol
+            # TODO: we also have to decrease the total break time on session lol
 
-                return cur.rowcount > 0
+            return cur.rowcount > 0
 
     # for the settings table !!
 
     def get_settings(self):
         if not self.is_connected():
-            print("Database is not connected")
-            return None 
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't get settings: Failed to connect to the database"
+            )
         
         cur = self.connection.cursor()
         cur.execute("SELECT * FROM settings")
@@ -627,10 +930,12 @@ class DatabaseManager:
 
     def update_pagination(self,p_size):
         if not self.is_connected():
-            print("Database is not connected")
-            return None 
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Failed to update pagination: Failed to connect to the database"
+            )
         
         with self.connection:        
             cur = self.connection.cursor()
             cur.execute("UPDATE settings SET pagination_size = ? WHERE id = 1",(p_size,))
-            return cur.rowcount > 0
+            return cur.rowcount > 0 
