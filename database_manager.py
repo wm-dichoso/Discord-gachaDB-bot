@@ -105,9 +105,10 @@ class DatabaseManager:
 
                 -- Settings table
                 CREATE TABLE IF NOT EXISTS settings (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id INTEGER DEFAULT 1 CHECK("id" = 1),
                     pagination_size INTEGER DEFAULT 10,
-                    features_enabled TEXT DEFAULT '{}'
+                    features_enabled TEXT DEFAULT '{}',
+                    PRIMARY KEY("id")
                 );
                 """)
         except sqlite3.OperationalError as e:
@@ -127,96 +128,48 @@ class DatabaseManager:
     # EXISTENCE CHECKS
    
     def game_exists(self, game_id):
-        if not self.is_connected():
-            return Result.fail(
-                code="DB_CONNECTION_FAILED",
-                message="Couldn't check if game exists: Failed to connect to the database"
-            )
-        
         cur = self.connection.cursor()
         cur.execute("SELECT * FROM games WHERE game_id = ?", (game_id,))
 
         return cur.fetchone() is not None
     
     def game_exists_with_name(self, game_name):
-        if not self.is_connected():
-            return Result.fail(
-                code="DB_CONNECTION_FAILED",
-                message="Couldn't check if game exists with name: Failed to connect to the database"
-            )
-        
         cur = self.connection.cursor()
         cur.execute("SELECT * FROM games WHERE game_name = ?", (game_name,))
 
         return cur.fetchone() is not None
 
-    def game_exists_with_channel_ID(self, channel_id):        
-        if not self.is_connected():
-            return Result.fail(
-                code="DB_CONNECTION_FAILED",
-                message="Couldn't check if game exists with channel id: Failed to connect to the database"
-            )
-        
+    def game_exists_with_channel_ID(self, channel_id):  
         cur = self.connection.cursor()
         cur.execute("SELECT * FROM games WHERE channel_id = ?", (channel_id,))
 
         return cur.fetchone() is not None
 
     def banner_exists(self, banner_id):
-        if not self.is_connected():
-            return Result.fail(
-                code="DB_CONNECTION_FAILED",
-                message="Couldn't check if banner exists: Failed to connect to the database"
-            )
-        
         cur = self.connection.cursor()
         cur.execute("SELECT * FROM banners WHERE banner_id = ?", (banner_id,))
 
         return cur.fetchone() is not None
     
     def banner_name_exists(self, banner_name):
-        if not self.is_connected():
-            return Result.fail(
-                code="DB_CONNECTION_FAILED",
-                message="Couldn't check if banner name exists: Failed to connect to the database"
-            )
-        
         cur = self.connection.cursor()
         cur.execute("SELECT * FROM banners WHERE banner_name = ?", (banner_name,))
 
         return cur.fetchone() is not None
 
     def pull_entry_exists(self, pull_id):
-        if not self.is_connected():
-            return Result.fail(
-                code="DB_CONNECTION_FAILED",
-                message="Couldn't check of pull entry exists: Failed to connect to the database"
-            )
-        
         cur = self.connection.cursor()
         cur.execute("SELECT * FROM pull_history WHERE pull_id = ?",(pull_id,))
 
         return cur.fetchone() is not None
     
     def session_exists(self, session_id):
-        if not self.is_connected():
-            return Result.fail(
-                code="DB_CONNECTION_FAILED",
-                message="Couldn't check if session exists: Failed to connect to the database"
-            )
-        
         cur = self.connection.cursor()
         cur.execute("SELECT * FROM sessions WHERE session_id = ?", (session_id,))
 
         return cur.fetchone() is not None
     
     def break_session_exists(self, break_id):
-        if not self.is_connected():
-            return Result.fail(
-                code="DB_CONNECTION_FAILED",
-                message="Couldn't check break session: Failed to connect to the database"
-            )
-        
         cur = self.connection.cursor()
         cur.execute("SELECT * FROM session_breaks WHERE break_id = ?", (break_id,))
 
@@ -240,31 +193,6 @@ class DatabaseManager:
                 data=res[0]
             )
     
-    # def increment_pity(self, banner_id, pity: int):
-    # # this function maybe redo or remove this XD,
-    # # we already have update pity which is update_pity so lets just use that !!
-    #     if not self.is_connected():
-    #         return Result.fail(
-    #             code="DB_CONNECTION_FAILED",
-    #             message="Couldn't increment pity: Failed to connect to the database"
-    #         ) 
-        
-    #     if not self.banner_exists(banner_id):
-    #         print("banner does not exists")
-    #         return
-        
-    #     with self.connection:        
-    #         cur = self.connection.cursor()
-    #         cur.execute("SELECT current_pity FROM banners WHERE banner_id = ?", (banner_id,))
-    #         res = cur.fetchone()
-    #         print(f"current pity is {res[0]}")
-
-    #         new_pity = int(res[0]) + pity
-
-    #         cur.execute("UPDATE banners SET current_pity = ? WHERE banner_id = ?", (new_pity, banner_id,))
-    #         print(f"pity updated from {res[0]} to {new_pity}")
-    #         return cur.rowcount > 0
-
     def update_pity(self, banner_id, pity):
         if not self.is_connected():
             return Result.fail(
@@ -278,19 +206,26 @@ class DatabaseManager:
                 code="BANNER_NOT_FOUND",
                 message="Couldn't update pity: Banner does not exist"
             ) 
-        
-        with self.connection:
-            cur = self.connection.cursor()
-            cur.execute("UPDATE banners SET current_pity = ? WHERE banner_id = ?", (pity, banner_id,))
-            if not cur.rowcount > 0:
-                return Result.fail(
-                    code="BANNER_PITY_UPDATE_FAIL",
-                    message="Couldn't update pity"
-                ) 
-            else:
-                return Result.ok(
-                code="BANNER_PITY_UPDATED",
-                message="Updated banner's current pity"
+        try:
+            with self.connection:
+                cur = self.connection.cursor()
+                cur.execute("UPDATE banners SET current_pity = ? WHERE banner_id = ?", (pity, banner_id,))
+                if not cur.rowcount > 0:
+                    return Result.fail(
+                        code="BANNER_PITY_UPDATE_FAIL",
+                        message="Couldn't update pity"
+                    ) 
+                else:
+                    return Result.ok(
+                    code="BANNER_PITY_UPDATED",
+                    message="Updated banner's current pity"
+                )
+
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
             )
 
  
@@ -328,22 +263,30 @@ class DatabaseManager:
                 message="Couldn't add version: Failed to connect to the database"
             ) 
         
-        with self.connection:        
-            cur = self.connection.cursor()
-            # check if version already exists !
-            cur.execute("SELECT version FROM meta WHERE version = ?", (version,))
-            res = cur.fetchone()
-            if res is None:
-                return Result.fail(
-                code="VERSION_ADD_FAIL",
-                message="Couldn't add version: version already exists"
-            )
-            else: 
-                cur.execute("INSERT INTO meta (version, created_at, last_modified) VALUES (?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)", (version,))
-                return Result.ok(
-                    code="VERSION_ADDED",
-                    message=f"version {version} is added to the meta"
+        try: 
+            with self.connection:        
+                cur = self.connection.cursor()
+                # check if version already exists !
+                cur.execute("SELECT version FROM meta WHERE version = ?", (version,))
+                res = cur.fetchone()
+                if res is not None: #version does exist
+                    return Result.fail(
+                    code="VERSION_ADD_FAIL",
+                    message="Couldn't add version: version already exists"
                 )
+                else: #version does not exist 
+                    cur.execute("INSERT INTO meta (version, created_at, last_modified) VALUES (?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)", (version,))
+                    return Result.ok(
+                        code="VERSION_ADDED",
+                        message=f"version {version} is added to the meta"
+                    )
+               
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
 
     def update_version(self, version):
         if not self.is_connected():
@@ -352,22 +295,30 @@ class DatabaseManager:
                 message="Couldn't update version: Failed to connect to the database"
             ) 
         
-        with self.connection:
-            cur = self.connection.cursor()
-            # check if version already exists !
-            cur.execute("SELECT version FROM meta WHERE version = ?", (version,))
-            res = cur.fetchone()
-            if res is None:
-                return Result.fail(
-                    code="VERSION_ADD_FAIL",
-                    message="Couldn't add version: version already exists"
-                )
-            else:
-                cur.execute("UPDATE meta SET last_modified = CURRENT_TIMESTAMP WHERE version = ?", (version,))
-                return Result.ok(
-                    code="VERSION_UPDATED",
-                    message="Version update successfully!"
-                )
+        try: 
+            with self.connection:
+                cur = self.connection.cursor()
+                # check if version already exists !
+                cur.execute("SELECT version FROM meta WHERE version = ?", (version,))
+                res = cur.fetchone()
+                if res is None:
+                    return Result.fail(
+                        code="VERSION_ADD_FAIL",
+                        message="Couldn't add version: version already exists"
+                    )
+                else:
+                    cur.execute("UPDATE meta SET last_modified = CURRENT_TIMESTAMP WHERE version = ?", (version,))
+                    return Result.ok(
+                        code="VERSION_UPDATED",
+                        message="Version update successfully!"
+                    )
+                   
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
 
     # endregion
 
@@ -388,19 +339,27 @@ class DatabaseManager:
                 message="A game already exists for this channel"
             )
         
-        with self.connection:        
-            cur = self.connection.cursor()
-            cur.execute("INSERT INTO games (game_name, channel_id) VALUES (?, ?)", (game, ch_id,))
-            if not cur.rowcount > 0:
-                return Result.fail(
-                    code="GAME_CREATE_FAILED",
-                    message="Failed to add game"
-                )
-            else:
-                return Result.ok(
-                    code="GAME_CREATED",
-                    message="Game added successfully"
-                )
+        try: 
+            with self.connection:        
+                cur = self.connection.cursor()
+                cur.execute("INSERT INTO games (game_name, channel_id) VALUES (?, ?)", (game, ch_id,))
+                if not cur.rowcount > 0:
+                    return Result.fail(
+                        code="GAME_CREATE_FAILED",
+                        message="Failed to add game"
+                    )
+                else:
+                    return Result.ok(
+                        code="GAME_CREATED",
+                        message="Game added successfully"
+                    )
+                   
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
 
     def get_game_by_id(self, game_id):
         if not self.is_connected():
@@ -440,7 +399,7 @@ class DatabaseManager:
         cur = self.connection.cursor()
         cur.execute("SELECT game_name FROM games")
         res = cur.fetchall()
-        if res is None:
+        if not res:
             return Result.fail(
                 code="NO_GAMES_FOUND",
                 message="No games found"
@@ -465,19 +424,27 @@ class DatabaseManager:
                 message=f"Game with id: {game_id} does not exists."
             )
         
-        with self.connection:        
-            cur = self.connection.cursor()
-            cur.execute("UPDATE games SET game_name = ? WHERE game_id = ?", (game_name, game_id,))
-            if not cur.rowcount > 0:
-                return Result.fail(
-                    code="GAME_UPDATE_FAILED",
-                    message="Failed to update game name"
-                )
-            else:
-                return Result.ok(
-                    code="GAME_UPDATED",
-                    message="Game name updated successfully"
-                )
+        try: 
+            with self.connection:        
+                cur = self.connection.cursor()
+                cur.execute("UPDATE games SET game_name = ? WHERE game_id = ?", (game_name, game_id,))
+                if not cur.rowcount > 0:
+                    return Result.fail(
+                        code="GAME_UPDATE_FAILED",
+                        message="Failed to update game name"
+                    )
+                else:
+                    return Result.ok(
+                        code="GAME_UPDATED",
+                        message="Game name updated successfully"
+                    )
+                   
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
 
     def update_game_channel(self, game_id, channel_id):
         if not self.is_connected():
@@ -492,19 +459,27 @@ class DatabaseManager:
                 message=f"game with game id: {game_id} does not exists."
             )
         
-        with self.connection:        
-            cur = self.connection.cursor()
-            cur.execute("UPDATE games SET channel_id = ? WHERE game_id = ?", (channel_id, game_id,))
-            if not cur.rowcount > 0:
-                return Result.fail(
-                    code="GAME_UPDATE_FAILED",
-                    message="Failed to update game channel"
-                )
-            else:
-                return Result.ok(
-                    code="GAME_UPDATED",
-                    message="Game channel updated successfully"
-                )
+        try: 
+            with self.connection:        
+                cur = self.connection.cursor()
+                cur.execute("UPDATE games SET channel_id = ? WHERE game_id = ?", (channel_id, game_id,))
+                if not cur.rowcount > 0:
+                    return Result.fail(
+                        code="GAME_UPDATE_FAILED",
+                        message="Failed to update game channel"
+                    )
+                else:
+                    return Result.ok(
+                        code="GAME_UPDATED",
+                        message="Game channel updated successfully"
+                    )
+                   
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
 
     def delete_game(self, game_id):
         if not self.is_connected():
@@ -519,19 +494,27 @@ class DatabaseManager:
                 message=f"game with game id: {game_id} does not exists."
             )
         
-        with self.connection:        
-            cur = self.connection.cursor()
-            cur.execute("DELETE FROM games WHERE game_id = ?", (game_id,))
-            if not cur.rowcount > 0:
-                return Result.fail(
-                    code="GAME_DELETE_FAILED",
-                    message="Failed to delete game"
-                )
-            else:
-                return Result.ok(
-                    code="GAME_DELETED",
-                    message="Game deleted successfully"
-                )
+        try: 
+            with self.connection:        
+                cur = self.connection.cursor()
+                cur.execute("DELETE FROM games WHERE game_id = ?", (game_id,))
+                if not cur.rowcount > 0:
+                    return Result.fail(
+                        code="GAME_DELETE_FAILED",
+                        message="Failed to delete game"
+                    )
+                else:
+                    return Result.ok(
+                        code="GAME_DELETED",
+                        message="Game deleted successfully"
+                    )
+                   
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
         
     # endregion
 
@@ -553,19 +536,27 @@ class DatabaseManager:
                 message="A banner already exists with this name"
             )
         
-        with self.connection:        
-            cur = self.connection.cursor()
-            cur.execute("INSERT INTO banners (game_id, banner_name, current_pity, max_pity) VALUES (?, ?, ?, ?)", (game_id, banner_name,current_pity, max_pity,))
-            if not cur.rowcount > 0:
-                return Result.fail(
-                        code="BANNER_CREATE_FAILED",
-                        message="Failed to add banner"
+        try: 
+            with self.connection:        
+                cur = self.connection.cursor()
+                cur.execute("INSERT INTO banners (game_id, banner_name, current_pity, max_pity) VALUES (?, ?, ?, ?)", (game_id, banner_name,current_pity, max_pity,))
+                if not cur.rowcount > 0:
+                    return Result.fail(
+                            code="BANNER_CREATE_FAILED",
+                            message="Failed to add banner"
+                        )
+                else:
+                    return Result.ok(
+                        code="BANNER_CREATED",
+                        message="Banner added successfully"
                     )
-            else:
-                return Result.ok(
-                    code="BANNER_CREATED",
-                    message="Banner added successfully"
-                )
+                   
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
 
     def get_banner(self, banner_id):
         if not self.is_connected():
@@ -606,7 +597,7 @@ class DatabaseManager:
         cur = self.connection.cursor()
         cur.execute("SELECT banner_name, current_pity, last_updated FROM banners WHERE game_id = ?", (game_id,))
         res = cur.fetchall()
-        if res is None:
+        if not res:
             return Result.fail(
                 code="NO_BANNERS_FOUND",
                 message="No banners found for this game"
@@ -631,19 +622,27 @@ class DatabaseManager:
                 message=f"Banner with banner id: {banner_id} does not exists."
             ) 
         
-        with self.connection:        
-            cur = self.connection.cursor()
-            cur.execute("UPDATE banners SET banner_name = ? WHERE banner_id = ?", (new_banner_name, banner_id,))
-            if not cur.rowcount > 0:
-                return Result.fail(
-                code="BANNER_UPDATE_FAILED",
-                message="Failed to update banner name"
-            ) 
-            else:
-                return Result.ok(
-                    code="BANNER_UPDATED",
-                    message="Banner updated successfully"
-                )
+        try: 
+            with self.connection:        
+                cur = self.connection.cursor()
+                cur.execute("UPDATE banners SET banner_name = ? WHERE banner_id = ?", (new_banner_name, banner_id,))
+                if not cur.rowcount > 0:
+                    return Result.fail(
+                    code="BANNER_UPDATE_FAILED",
+                    message="Failed to update banner name"
+                ) 
+                else:
+                    return Result.ok(
+                        code="BANNER_UPDATED",
+                        message="Banner updated successfully"
+                    )
+                   
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
             
 
     def update_banner_pity(self, banner_id, new_pity):
@@ -660,19 +659,27 @@ class DatabaseManager:
                 message=f"Banner with banner id: {banner_id} does not exists."
             ) 
         
-        with self.connection:        
-            cur = self.connection.cursor()
-            cur.execute("UPDATE banners SET current_pity = ? WHERE banner_id = ?", (new_pity, banner_id,))
-            if not cur.rowcount > 0:
-                return Result.fail(
-                code="BANNER_PITY_UPDATE_FAILED",
-                message="Couldn't update banner pity"
-            ) 
-            else:
-                return Result.ok(
-                    code="BANNER_PITY_UPDATED",
-                    message="Banner pity updated successfully"
-                )
+        try: 
+            with self.connection:        
+                cur = self.connection.cursor()
+                cur.execute("UPDATE banners SET current_pity = ? WHERE banner_id = ?", (new_pity, banner_id,))
+                if not cur.rowcount > 0:
+                    return Result.fail(
+                    code="BANNER_PITY_UPDATE_FAILED",
+                    message="Couldn't update banner pity"
+                ) 
+                else:
+                    return Result.ok(
+                        code="BANNER_PITY_UPDATED",
+                        message="Banner pity updated successfully"
+                    )
+                   
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
     
     def update_banner_max_pity(self, banner_id, new_max_pity):
         if not self.is_connected():
@@ -687,19 +694,27 @@ class DatabaseManager:
                 message=f"Banner with banner id: {banner_id} does not exists."
             ) 
         
-        with self.connection:        
-            cur = self.connection.cursor()
-            cur.execute("UPDATE banners SET max_pity = ? WHERE banner_id = ?", (new_max_pity, banner_id,))
-            if not cur.rowcount > 0:
-                return Result.fail(
-                code="BANNER_MAXPITY_UPDATE_FAILED",
-                message="Couldn't update banner pity"
-            ) 
-            else:
-                return Result.ok(
-                    code="BANNER_MAXPITY_UPDATED",
-                    message="Banner pity updated successfully"
-                )
+        try: 
+            with self.connection:        
+                cur = self.connection.cursor()
+                cur.execute("UPDATE banners SET max_pity = ? WHERE banner_id = ?", (new_max_pity, banner_id,))
+                if not cur.rowcount > 0:
+                    return Result.fail(
+                        code="BANNER_MAXPITY_UPDATE_FAILED",
+                        message="Couldn't update banner pity"
+                    ) 
+                else:
+                    return Result.ok(
+                        code="BANNER_MAXPITY_UPDATED",
+                        message="Banner pity updated successfully"
+                    )
+                   
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
 
     def delete_banner(self, banner_id):
         if not self.is_connected():
@@ -714,23 +729,31 @@ class DatabaseManager:
                 message=f"Banner with banner id: {banner_id} does not exists."
             ) 
         
-        with self.connection:        
-            cur = self.connection.cursor()
-            cur.execute("DELETE FROM banners WHERE banner_id = ?", (banner_id,))
-            if not cur.rowcount > 0:
-                return Result.fail(
-                code="BANNER_DELETE_FAILED",
-                message="Failed to delete banner"
-            ) 
-            else:
-                return Result.ok(
-                    code="BANNER_DELETED",
-                    message="Banner deleted successfully"
-                )
+        try: 
+            with self.connection:        
+                cur = self.connection.cursor()
+                cur.execute("DELETE FROM banners WHERE banner_id = ?", (banner_id,))
+                if not cur.rowcount > 0:
+                    return Result.fail(
+                        code="BANNER_DELETE_FAILED",
+                        message="Failed to delete banner"
+                    ) 
+                else:
+                    return Result.ok(
+                        code="BANNER_DELETED",
+                        message="Banner deleted successfully"
+                    )
+                   
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
         
     # endregion
 
-    # for the pull history !! <------ do this for result stuff !!!
+    # for the pull history !! 
     # browse a list history of a particular banner, delete an entry
 
     def add_pull(self, entry_name, banner_id, pity, notes):
@@ -742,21 +765,39 @@ class DatabaseManager:
         
         # check if banner for this pull actually xists 
         if not self.banner_exists(banner_id):
-            print(f"Banner id: {banner_id} does not exists")
-            return False
-        
-        with self.connection:        
-            cur = self.connection.cursor()            
-            cur.execute("""
-                INSERT INTO pull_history (banner_id, game_id, entry_name, pity, notes)
-                SELECT
-                    b.banner_id, b.game_id, ?, ?, ?
-                FROM banners b
-                WHERE b.banner_id = ?
-            """, (entry_name, pity, notes, banner_id))
-            print(f"Added new unit")
-            return cur.rowcount > 0
+            return Result.fail(
+                    code="BANNER_NOT_FOUND",
+                    message=f"Banner with banner id: {banner_id} does not exists."
+                )
+        try: 
+            with self.connection:        
+                cur = self.connection.cursor()            
+                cur.execute("""
+                    INSERT INTO pull_history (banner_id, game_id, entry_name, pity, notes)
+                    SELECT
+                        b.banner_id, b.game_id, ?, ?, ?
+                    FROM banners b
+                    WHERE b.banner_id = ?
+                """, (entry_name, pity, notes, banner_id))
 
+                if not cur.rowcount > 0:
+                    return Result.fail(
+                        code="ADD_PULL_ENTRY_FAILED",
+                        message="Couldn't add pull entry"
+                    ) 
+                else:
+                    return Result.ok(
+                        code="PULL_ENTRY_ADDED",
+                        message="Pull entry added successfully"
+                    )
+                   
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
+            
     def get_pulls_by_banner(self, banner_id):
         if not self.is_connected():
             return Result.fail(
@@ -765,12 +806,25 @@ class DatabaseManager:
             ) 
         
         if not self.banner_exists(banner_id):
-            print(f"banner id: {banner_id} does not exists")
-            return False
+            return Result.fail(
+                code="BANNER_NOT_FOUND",
+                message=f"Banner with banner id: {banner_id} does not exists."
+            )
         
         cur = self.connection.cursor()
         cur.execute("SELECT entry_name, pity, notes, timestamp FROM pull_history WHERE banner_id = ?", (banner_id,))
-        return cur.fetchall()
+        res = cur.fetchall()
+        if not res:
+            return Result.fail(
+                    code="GET_BANNER_PULLS_FAILED",
+                    message="Couldn't get pull entries for this banner."
+                ) 
+        else:
+            return Result.ok(
+                code="BANNER_PULL_ENTRIES_OBTAINED",
+                message="Successfully retrieved pull entries for this banner",
+                data=res
+            )
         
     def delete_pull(self, pull_id):
         if not self.is_connected():
@@ -780,17 +834,36 @@ class DatabaseManager:
             )
         
         if not self.pull_entry_exists(pull_id):
-            print(f"Cannot be deleted. pull entry id: {pull_id} does not exist.")
-            return False
+            return Result.fail(
+                code="PULL_ENTRY_NOT_FOUND",
+                message=f"Cannot be deleted. pull entry id: {pull_id} does not exist."
+            )
         
-        with self.connection:        
-            cur = self.connection.cursor()
-            cur.execute("DELETE FROM pull_history WHERE pull_id = ?", (pull_id,))
-            return cur.rowcount > 0
+        try: 
+            with self.connection:        
+                cur = self.connection.cursor()
+                cur.execute("DELETE FROM pull_history WHERE pull_id = ?", (pull_id,))
+                if not cur.rowcount > 0:
+                    return Result.fail(
+                        code="DELETE_PULL_ENTRY_FAILED",
+                        message="Couldn't delete pull entry."
+                    ) 
+                else:
+                    return Result.ok(
+                        code="PULL_ENTRY_DELETED",
+                        message="Successfully deleted this pull entry."
+                    )
+                   
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
 
     # for the session history !!
     # add new session, browse history of sessions, delete session
-    # SQLITE CURRENT_TIMESTAMP DEFAULTS TO UTC. JUST CONVERT IT TO LOCAL TIME VIA BACKEND XD
+    # SQLITE CURRENT_TIMESTAMP DEFAULTS TO UTC. JUST CONVERT IT TO LOCAL TIME AFTER BACKEND XD
 
     def start_session(self, session_name):
         if not self.is_connected():
@@ -798,14 +871,28 @@ class DatabaseManager:
                 code="DB_CONNECTION_FAILED",
                 message="Couldn't start session: Failed to connect to the database"
             )
-                
-        with self.connection:        
-            cur = self.connection.cursor()            
-            cur.execute("""
-                INSERT INTO sessions (session_name) VALUES (?)
-            """, (session_name))
-            print(f"Added new session")
-            return cur.rowcount > 0
+
+        try:
+            with self.connection:        
+                cur = self.connection.cursor()            
+                cur.execute("INSERT INTO sessions (session_name) VALUES (?)", (session_name,))
+                if not cur.rowcount > 0:
+                    return Result.fail(
+                        code="START_SESSION_FAILED",
+                        message="Couldn't start the session."
+                    ) 
+                else:
+                    return Result.ok(
+                        code="SESSION_STARTED",
+                        message="Successfully started a session."
+                    )
+                   
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
 
     def end_session(self, session_id, end_time):
         if not self.is_connected():
@@ -815,14 +902,33 @@ class DatabaseManager:
             ) 
         
         if not self.session_exists(session_id):
-            print(f"session id: {session_id} does not exists.")
-            return False
+            return Result.fail(
+                    code="SESSION_NOT_FOUND",
+                    message=f"session id: {session_id} does not exists."
+                ) 
         
-        with self.connection:        
-            cur = self.connection.cursor()
-            cur.execute("UPDATE sessions SET end_time = ? WHERE session_id = ?", (end_time, session_id,))
-            return cur.rowcount > 0
-
+        try:
+            with self.connection:        
+                cur = self.connection.cursor()
+                cur.execute("UPDATE sessions SET end_time = ? WHERE session_id = ?", (end_time, session_id,))
+                if not cur.rowcount > 0:
+                    return Result.fail(
+                        code="END_SESSION_FAILED",
+                        message="Couldn't end the session."
+                    ) 
+                else:
+                    return Result.ok(
+                        code="SESSION_STARTED",
+                        message="Successfully ended a session."
+                    )
+                   
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
+            
     def browse_sessions(self):
         if not self.is_connected():
             return Result.fail(
@@ -832,7 +938,19 @@ class DatabaseManager:
         
         cur = self.connection.cursor()
         cur.execute("SELECT * FROM sessions")
-        return cur.fetchall()
+        res = cur.fetchall()
+
+        if not res:
+            return Result.fail(
+                code="FETCH_SESSIONS_FAILED",
+                message="Couldn't fetch all session."
+            ) 
+        else:
+            return Result.ok(
+                code="FETCH_SESSIONS",
+                message="Successfully retrieved all sessions.",
+                data=res
+            )
 
     def add_session_break(self, session_id):
         if not self.is_connected():
@@ -840,14 +958,34 @@ class DatabaseManager:
                 code="DB_CONNECTION_FAILED",
                 message="Couldn't add session break: Failed to connect to the database"
             ) 
+        
+        if not self.session_exists(session_id):
+            return Result.fail(
+                code="SESSION_NOT_FOUND",
+                message="Couldn't add session break: Session not found!"
+            ) 
                 
-        with self.connection:        
-            cur = self.connection.cursor()            
-            cur.execute("""
-                INSERT INTO session_breaks (session_id) VALUES (?)
-            """, (session_id))
-            print(f"Added new session break for the session id: {session_id}")
-            return cur.rowcount > 0
+        try:
+            with self.connection:        
+                cur = self.connection.cursor()            
+                cur.execute("INSERT INTO session_breaks (session_id) VALUES (?)", (session_id,))
+                if not cur.rowcount > 0:
+                    return Result.fail(
+                        code="END_SESSION_FAILED",
+                        message="Couldn't add break for the session."
+                    ) 
+                else:
+                    return Result.ok(
+                        code="SESSION_BREAK_STARTED",
+                        message=f"Added new session break for the session id: {session_id}"
+                    )
+                   
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
 
     def end_session_break(self, break_session_id):
         if not self.is_connected():
@@ -857,13 +995,32 @@ class DatabaseManager:
             ) 
         
         if not self.break_session_exists(break_session_id):
-            print(f"break session id: {break_session_id} does not exists.")
-            return False
+            return Result.fail(
+                code="SESSION_BREAK_NOT_FOUND",
+                message=f"Couldn't end session break: Break Session id: {break_session_id} does not exists."
+            ) 
         
-        with self.connection:        
-            cur = self.connection.cursor()
-            cur.execute("UPDATE session_breaks SET break_end = CURRENT_TIMESTAMP WHERE break_id = ?", (break_session_id,))
-            return cur.rowcount > 0
+        try: 
+            with self.connection:        
+                cur = self.connection.cursor()
+                cur.execute("UPDATE session_breaks SET break_end = CURRENT_TIMESTAMP WHERE break_id = ?", (break_session_id,))
+                if not cur.rowcount > 0:
+                    return Result.fail(
+                        code="END_SESSION_BREAK_FAILED",
+                        message="Couldn't end break for the session."
+                    ) 
+                else:
+                    return Result.ok(
+                        code="SESSION_BREAK_ENDED",
+                        message="Session Break Ended"
+                    )
+                   
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
 
     def get_breaks_for_session(self, session_id):
         if not self.is_connected():
@@ -873,12 +1030,26 @@ class DatabaseManager:
             ) 
         
         if not self.session_exists(session_id):
-            print(f"session id: {session_id} does not exists")
-            return False
+            return Result.fail(
+                code="SESSION_NOT_FOUND",
+                message="Couldn't get breaks for this session: Session not found!"
+            ) 
         
         cur = self.connection.cursor()
         cur.execute("SELECT break_start, break_end FROM session_breaks WHERE session_id = ?", (session_id,))
-        return cur.fetchall()
+        res = cur.fetchall()
+
+        if not res:
+            return Result.fail(
+                code="NO_BREAK_SESSIONS_FOUND",
+                message="Couldn't fetch breaks for this session."
+            ) 
+        else:
+            return Result.ok(
+                code="BREAK_SESSIONS_FOUND",
+                message="Breaks found for this session",
+                data=res
+            )
 
     def delete_session(self, session_id):
         if not self.is_connected():
@@ -886,15 +1057,34 @@ class DatabaseManager:
                 code="DB_CONNECTION_FAILED",
                 message="Couldn't delete session: Failed to connect to the database"
             )
-        
+                
         if not self.session_exists(session_id):
-            print(f"Cannot be deleted. session id: {session_id} does not exist.")
-            return False
+            return Result.fail(
+                code="SESSION_NOT_FOUND",
+                message=f"Cannot be deleted. session id: {session_id} does not exist."
+            ) 
         
-        with self.connection:        
-            cur = self.connection.cursor()
-            cur.execute("DELETE FROM sessions WHERE session_id = ?", (session_id,))
-            return cur.rowcount > 0
+        try: 
+            with self.connection:        
+                cur = self.connection.cursor()
+                cur.execute("DELETE FROM sessions WHERE session_id = ?", (session_id,))
+                if not cur.rowcount > 0:
+                    return Result.fail(
+                        code="DELETE_SESSION_FAILED",
+                        message="Couldn't delete the session."
+                    ) 
+                else:
+                    return Result.ok(
+                        code="SESSION_DELETED",
+                        message="Session deleted from the database"
+                    )
+                   
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
         
     def delete_break_session(self, break_id):
         if not self.is_connected():
@@ -904,18 +1094,66 @@ class DatabaseManager:
             )
             
         if not self.break_session_exists(break_id):
-            print(f"Cannot be deleted. break session id: {break_id} does not exist.")
-            return False
+            return Result.fail(
+                code="SESSION_BREAK_NOT_FOUND",
+                message=f"Couldn't delete break: Break Session id: {break_id} does not exists."
+            ) 
         
-        with self.connection:
-            cur = self.connection.cursor()
-            cur.execute("DELETE FROM session_breaks WHERE break_id = ?", (break_id,))
+        try:
+            with self.connection:
+                cur = self.connection.cursor()
+                cur.execute("DELETE FROM session_breaks WHERE break_id = ?", (break_id,))
 
-            # TODO: we also have to decrease the total break time on session lol
+                # TODO: we also have to decrease the total break time on session lol
 
-            return cur.rowcount > 0
-
+                if not cur.rowcount > 0:
+                    return Result.fail(
+                        code="DELETE_BREAK_SESSION_FAILED",
+                        message="Couldn't delete the break for this session."
+                    ) 
+                else:
+                    return Result.ok(
+                        code="SESSION_BREAK_DELETED",
+                        message="Break for this session successfully deleted from the database"
+                    )
+                   
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
+            
     # for the settings table !!
+
+    def init_settings(self):
+        if not self.is_connected():
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Failed to update pagination: Failed to connect to the database"
+            )
+        
+        try: 
+            with self.connection:        
+                cur = self.connection.cursor()
+                cur.execute("INSERT INTO settings DEFAULT VALUES")
+                if not cur.rowcount > 0:
+                    return Result.fail(
+                        code="SETTINGS_INITIALIZE_FAILED",
+                        message="Couldn't initialize settings."
+                    ) 
+                else:
+                    return Result.ok(
+                        code="SETTINGS_INITIALIZE_SUCCESS",
+                        message="Setting initialize success"
+                    )
+                   
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
 
     def get_settings(self):
         if not self.is_connected():
@@ -926,7 +1164,20 @@ class DatabaseManager:
         
         cur = self.connection.cursor()
         cur.execute("SELECT * FROM settings")
-        return cur.fetchall()
+        res = cur.fetchall()
+
+        if not res:
+            return Result.fail(
+                code="FETCH_SETTINGS_FAILED",
+                message="Couldn't fetch global settings from the database"
+            )
+        else:
+            return Result.ok(
+                code="FETCH_SETTING_SUCCESS",
+                message="Successfully retrieved global settings from the database",
+                data=res
+            )
+
 
     def update_pagination(self,p_size):
         if not self.is_connected():
@@ -935,7 +1186,24 @@ class DatabaseManager:
                 message="Failed to update pagination: Failed to connect to the database"
             )
         
-        with self.connection:        
-            cur = self.connection.cursor()
-            cur.execute("UPDATE settings SET pagination_size = ? WHERE id = 1",(p_size,))
-            return cur.rowcount > 0 
+        try:
+            with self.connection:        
+                cur = self.connection.cursor()
+                cur.execute("UPDATE settings SET pagination_size = ? WHERE id = 1",(p_size,))
+                if not cur.rowcount > 0:
+                    return Result.fail(
+                        code="SETTINGS_UPDATE_FAILED",
+                        message="Couldn't update the pagination settings."
+                    ) 
+                else:
+                    return Result.ok(
+                        code="SETTINGS_UPDATE_SUCCESS",
+                        message="Pagination successfully updated"
+                    )
+                   
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
