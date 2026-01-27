@@ -1,0 +1,97 @@
+idk why do this 
+but why not XD
+
+- a discord bot written in python
+
+- store some data (gacha pulls data like game name, current pity on banners, ssr pull history) in a text or json file on computer. 
+
+- store the bot to have access to only that channels 
+- check channel id for game name
+
+- display on command the pull history for that game in pagination
+- display current pity on banners for that game
+
+additional commands:
+- session timer start a story session log the time started and end, also put break command when you want to take a break then display total time elapsed on that story session while also including how long the break was.
+
+
+- create a command that makes new database if we decided to store info on a new game
+- do logging on a separate file because why not XD
+
+
+json structure !! <-- no longer JSON, now using sqlite (good for sql practice too)
+
+SAVE STUFF to json 
+
+- For Quest Sessions (session time start, break duration, lastSessionDuration) [maybe we dont actually need to save this ?]
+
+- Gacha History 
+
+
+
+Root
+│
+├── meta
+├── games
+├── active_sessions
+└── logs
+
+
+  meta
+  │
+  ├── version
+  ├── created_at
+  └── last_modified
+
+  logs
+  │
+  ├── last_backup
+  ├── last_cleanup
+  └── warnings
+
+
+
+  games
+  │
+  ├── game_key_1
+  │   ├── info
+  │   ├── banners
+  │   ├── pull_history
+  │   ├── sessions
+  │   └── settings  
+  │
+  ├── game_key_2
+  │   └── ...
+
+
+
+    info
+    │
+    ├── display_name
+    ├── channel_id
+    ├── created_at
+    └── last_updated
+
+
+    banners
+    │
+    ├── banner_id
+    │   └── pull_history
+    │       ├── entry_id
+    │       └── ...
+
+
+
+    settings
+    │
+    ├── pagination_size
+    ├── reminder_interval_minutes
+    ├── allowed_channels
+    └── features_enabled
+
+
+
+
+
+
+

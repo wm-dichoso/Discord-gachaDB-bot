@@ -175,7 +175,7 @@ class DatabaseManager:
 
         return cur.fetchone() is not None
 
-    # STATS HELPER
+    # STATS HELPER for banners
 
     def get_current_pity(self, banner_id):
         if not self.is_connected():
@@ -389,6 +389,34 @@ class DatabaseManager:
                     data=res
                 )
         
+    def get_game_by_channel_id(self, ch_id):
+        if not self.is_connected():
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't get game by ch id: Failed to connect to the database"
+            )
+        
+        if not self.game_exists_with_channel_ID(ch_id):
+            return Result.fail(
+                code="GAME_NOT_FOUND",
+                message=f"game with channel id: {ch_id} does not exists."
+            )
+        
+        cur = self.connection.cursor()
+        cur.execute("SELECT * FROM games WHERE channel_id = ?",(ch_id,))
+        res = cur.fetchone()
+        if res is None:
+            return Result.fail(
+                code="GAME_NOT_FOUND",
+                message=f"Game with channel id: {ch_id} does not exists."
+            )
+        else:
+            return Result.ok(
+                    code="GAME_FOUND",
+                    message="Game retrieved successfully",
+                    data=res
+                )
+        
     def list_games(self):
         if not self.is_connected():
             return Result.fail(
@@ -397,7 +425,7 @@ class DatabaseManager:
             ) 
         
         cur = self.connection.cursor()
-        cur.execute("SELECT game_name FROM games")
+        cur.execute("SELECT game_id, game_name FROM games")
         res = cur.fetchall()
         if not res:
             return Result.fail(
