@@ -125,7 +125,7 @@ class DatabaseManager:
         )
     
 
-    # EXISTENCE CHECKS
+    #region EXISTENCE CHECKS
    
     def game_exists(self, game_id):
         cur = self.connection.cursor()
@@ -175,7 +175,9 @@ class DatabaseManager:
 
         return cur.fetchone() is not None
 
-    # STATS HELPER for banners
+    #endregion
+
+    #region STATS HELPER for banners
 
     def get_current_pity(self, banner_id):
         if not self.is_connected():
@@ -227,7 +229,7 @@ class DatabaseManager:
                 message="SQLite error during X",
                 error=str(e)
             )
-
+    #endregion
  
 
     # crud operations for the tables apparently
@@ -320,7 +322,7 @@ class DatabaseManager:
                 error=str(e)
             )
 
-    # endregion
+    #endregion
 
     #region for the games !!
     # should be able to: add new games, list all the games on the table, get a particular game 
@@ -672,7 +674,6 @@ class DatabaseManager:
                 error=str(e)
             )
             
-
     def update_banner_pity(self, banner_id, new_pity):
         # already have update pity, why bother again XD
         if not self.is_connected():
@@ -781,7 +782,7 @@ class DatabaseManager:
         
     # endregion
 
-    # for the pull history !! 
+    #region for the pull history !! 
     # browse a list history of a particular banner, delete an entry
 
     def add_pull(self, entry_name, banner_id, pity, notes):
@@ -888,8 +889,9 @@ class DatabaseManager:
                 message="SQLite error during X",
                 error=str(e)
             )
+    #endregion
 
-    # for the session history !!
+    #region for the session history !!
     # add new session, browse history of sessions, delete session
     # SQLITE CURRENT_TIMESTAMP DEFAULTS TO UTC. JUST CONVERT IT TO LOCAL TIME AFTER BACKEND XD
 
@@ -1151,8 +1153,9 @@ class DatabaseManager:
                 message="SQLite error during X",
                 error=str(e)
             )
-            
-    # for the settings table !!
+    #endregion
+
+    #region for the settings table !!
 
     def init_settings(self):
         if not self.is_connected():
@@ -1206,7 +1209,6 @@ class DatabaseManager:
                 data=res
             )
 
-
     def update_pagination(self,p_size):
         if not self.is_connected():
             return Result.fail(
@@ -1235,3 +1237,5 @@ class DatabaseManager:
                 message="SQLite error during X",
                 error=str(e)
             )
+        
+    #endregion
