@@ -134,6 +134,9 @@ class Banner_Service:
             code=update.message
         )
     
+    # other update but not really needed early on so XD
+    # - update max pity, update banner name
+
     def delete_banner(self, banner_id):
         if not banner_id:
             return Result.fail(
