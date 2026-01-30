@@ -1,9 +1,12 @@
-from database_manager import DatabaseManager
 from help import Result
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from database_manager import DatabaseManager
 
 class Banner_Service:
-    def __init__(self):
-        self.db = DatabaseManager()
+    def __init__(self, db: "DatabaseManager"):
+        self.db = db
 
     def create_banner(self, game_id, banner_name, current_pity, max_pity):
         if not game_id:
@@ -131,7 +134,7 @@ class Banner_Service:
         
         return Result.ok(
             code="UPDATED_PITY",
-            code=update.message
+            message=update.message
         )
     
     # other update but not really needed early on so XD

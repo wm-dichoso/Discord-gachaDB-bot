@@ -1,10 +1,13 @@
-from database_manager import DatabaseManager
 from help import Result
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from database_manager import DatabaseManager
 
 class Setting_Service:
-    def __init__(self):
-        self.db = DatabaseManager()
-        self.pagination = int(10)
+    def __init__(self, db: "DatabaseManager"):
+        self.db = db
+        self.pagination = int(10) # default at 10, set it on service XD
 
     def initialize_settings(self):
         setting = self.db.init_settings()

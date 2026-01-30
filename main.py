@@ -1,46 +1,37 @@
+import os
+import discord
+from dotenv import load_dotenv
+from discord.ext import commands
+
+# import db and services
 from database_manager import DatabaseManager
+from services import Services
 
+# import commands here
+from commands.game_commands import setup_game_commands
+
+# load all this?
+load_dotenv()
 db = DatabaseManager()
+db.connect_db()
+services = Services(db)
 
-if db.connect_db():
-    print("Ready to use database!")
-else:
-    print("Database failed to connect.")
+# BOT setup
+BOT_TOKEN = os.getenv('BOT_TOKEN')
+test_CHANNEL_ID = os.getenv('test_CHANNEL_ID')
+bot = commands.Bot(command_prefix=".", intents=discord.Intents.all())
 
-# run if no tables ?
-def init():
-    if db.create_tables():
-        print("tables created!")
-    else:
-        print("couldnt create tables.")
-    
-    db.add_version(0.1)
+@bot.event
+async def on_ready():
+    print(f"{bot.user} is online!")
 
-# # create_tb()
+# Commands here 
+setup_game_commands(bot, services)
 
-# res = db.banner_exists(1)
-# print(f"banner with banner id 1 exists?: {res}")
+# just try command XD
+@bot.command()
+async def hello(ctx):
+    await ctx.send("hello!!")
 
-# pity = db.get_current_pity(1)
-# print(f"pity of banner id 1: {pity}")
-
-
-# increase = 10
-# inc = db.increment_pity(1, increase)
-# if inc:
-#     print(f"success reseting: {inc}")
-
-
-
-# new_pity = 70
-# # inc = db.reset_pity(1, new_pity)
-# # if inc:
-# #     print(f"success reseting: {inc}")
-
-
-
-# pity = db.get_current_pity(1)
-# print(f"pity of banner id 1: {pity}")
-
-
-# db.add_version(0.1)
+# run 
+bot.run(BOT_TOKEN)

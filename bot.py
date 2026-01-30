@@ -5,6 +5,8 @@ from discord.ext import commands
 from dotenv import load_dotenv
 from dataclasses import dataclass
 
+# JUST A DISCORD BOT STARTER I GUESS. GONNA COPY SOME STUFF HERE TO MAIN
+
 load_dotenv()
 
 BOT_TOKEN = os.getenv('BOT_TOKEN')

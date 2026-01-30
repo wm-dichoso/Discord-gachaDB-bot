@@ -1,9 +1,12 @@
-from database_manager import DatabaseManager
 from help import Result
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from database_manager import DatabaseManager
 
 class Game_Service:
-    def __init__(self):
-        self.db = DatabaseManager()
+    def __init__(self, db: "DatabaseManager"):
+        self.db = db
 
     # existence checks already on db so no need to put it on service layers, just validate variable passed from the command
 
@@ -57,7 +60,7 @@ class Game_Service:
         if not get_game.success:
             return Result.fail(
                 code="FAILED_FETCHING_GAME",
-                message="Couldn't get the game with the channel ID",
+                message=get_game.message,
                 error=get_game.error
             )
         
@@ -82,14 +85,14 @@ class Game_Service:
         if not games.success:
             return Result.fail(
                 code="FAILED_FETCHING_GAME_LIST",
-                message="Couldn't get the game list",
+                message=games.message,
                 error=games.error
             )
         # this uses fetchall so check for falsy instead of just None because it will still give you a tuple an empty tuple 
         if not games.data:
             return Result.fail(
                 code="NO_GAMES_FOUND",
-                message="No registered games on the db",
+                message=games.message,
                 error=games.error
             )
         
@@ -98,8 +101,8 @@ class Game_Service:
         for game in games.data:
             Game_ID, Game_Name = game
             game_list.append({
-                "Game_ID": Game_ID,
-                "Game_Name": Game_Name
+                "name": Game_Name,
+                "id": Game_ID
             })
 
         return Result.ok(

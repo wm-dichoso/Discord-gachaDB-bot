@@ -1,9 +1,12 @@
-from database_manager import DatabaseManager
 from help import Result
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from database_manager import DatabaseManager
 
 class Pull_Service:
-    def __init__(self):
-        self.db = DatabaseManager()
+    def __init__(self, db: "DatabaseManager"):
+        self.db = db
 
     def add_pull_to_banner(self, entry_name, banner_id, pity, notes):
         if not entry_name:
