@@ -625,7 +625,7 @@ class DatabaseManager:
             ) 
         
         cur = self.connection.cursor()
-        cur.execute("SELECT banner_name, current_pity, last_updated FROM banners WHERE game_id = ?", (game_id,))
+        cur.execute("SELECT banner_id, banner_name, current_pity, last_updated FROM banners WHERE game_id = ?", (game_id,))
         res = cur.fetchall()
         if not res:
             return Result.fail(

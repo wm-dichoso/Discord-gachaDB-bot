@@ -69,8 +69,8 @@ class Pull_Service:
         for pull in banner_pulls.data:
             entry, pity, notes, time = pull
             pull_history.append({
-                "Name": entry,
                 "Pity": pity,
+                "Name": entry,
                 "Notes": notes,
                 "Timestamp": time
             })

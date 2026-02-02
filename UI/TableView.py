@@ -1,0 +1,95 @@
+import discord
+from discord.ui import View, Button
+
+ITEMS_PER_PAGE = 10 # pagination setting logic do here <----------
+
+
+class PaginatedTable(View):
+    def __init__(self, items, title="Table", page=0, timeout=120):
+        super().__init__(timeout=timeout)
+        self.items = items
+        self.title = title
+        self.page = page
+        self.max_page = max(0, (len(items) - 1) // ITEMS_PER_PAGE)
+
+        self._update_buttons()
+
+    # ---------- EMBED BUILDER ----------
+
+    def build_embed(self):
+        embed = discord.Embed(title=self.title, color=discord.Color.blurple())
+
+        start = self.page * ITEMS_PER_PAGE
+        end = start + ITEMS_PER_PAGE
+        page_items = self.items[start:end]
+
+        if not page_items:
+            embed.description = "No data available."
+            return embed
+
+        headers = page_items[0].keys()
+        table = ""
+
+        # Header
+        table += " | ".join(headers) + "\n"
+        table += "-|-".join(["---"] * len(headers)) + "\n"
+
+        # Rows
+        for item in page_items:
+            row = [str(item.get(h, "")) for h in headers]
+            table += " | ".join(row) + "\n"
+
+        embed.description = f"```{table}```"
+        embed.set_footer(text=f"Page {self.page + 1} / {self.max_page + 1}")
+
+        return embed
+
+    # ---------- BUTTON MANAGEMENT ----------
+
+    def _update_buttons(self):
+        self.clear_items()
+
+        self.add_item(
+            Button(
+                label="◀ Prev",
+                style=discord.ButtonStyle.secondary,
+                disabled=self.page <= 0,
+                custom_id="prev"
+            )
+        )
+
+        self.add_item(
+            Button(
+                label="Next ▶",
+                style=discord.ButtonStyle.secondary,
+                disabled=self.page >= self.max_page,
+                custom_id="next"
+            )
+        )
+
+    async def interaction_check(self, interaction: discord.Interaction):
+        return True  # optionally restrict to original user
+
+    async def on_timeout(self):
+        for item in self.children:
+            item.disabled = True
+
+    # ---------- INTERACTION HANDLER ----------
+
+    @discord.ui.button(label="◀ Prev", style=discord.ButtonStyle.secondary)
+    async def prev_button(self, interaction: discord.Interaction, button: Button):
+        self.page -= 1
+        self._update_buttons()
+        await interaction.response.edit_message(
+            embed=self.build_embed(),
+            view=self
+        )
+
+    @discord.ui.button(label="Next ▶", style=discord.ButtonStyle.secondary)
+    async def next_button(self, interaction: discord.Interaction, button: Button):
+        self.page += 1
+        self._update_buttons()
+        await interaction.response.edit_message(
+            embed=self.build_embed(),
+            view=self
+        )

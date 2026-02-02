@@ -62,11 +62,16 @@ class Banner_Service:
         banner_list = []
 
         for banner in banners.data:
-            banner_name, current_pity, last_updated = banner
+            banner_id, banner_name, current_pity, last_updated = banner
+            # banner_list.append({
+            #     "Banner_Name": banner_name, 
+            #     "Current_Pity": current_pity, 
+            #     "Last_Updated": last_updated
+            # })
+
             banner_list.append({
-                "Banner_Name": banner_name, 
-                "Current_Pity": current_pity, 
-                "Last_Updated": last_updated
+                "name": banner_name + " At *" + str(current_pity)+  "* pity. " + "Last accessed: "+ str(last_updated), 
+                "id": banner_id, 
             })
 
         return Result.ok(

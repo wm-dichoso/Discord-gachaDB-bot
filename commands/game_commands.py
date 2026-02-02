@@ -3,6 +3,7 @@ import discord
 from services.interface import ServicesProtocol
 from services import Services
 from UI.SelectionMenu import SelectionMenu
+from UI.TableView import PaginatedTable
 
 def setup_game_commands(bot, service: ServicesProtocol):
 
@@ -25,22 +26,7 @@ def setup_game_commands(bot, service: ServicesProtocol):
             return
 
         game = result.data
-        await ctx.send(f"Current game: {game['name']}")
-
-    @bot.command()
-    async def list_game(ctx):
-        result = service.game_service.list_games()
-
-        if not result.success:
-            await ctx.send(result.message)
-            return
-        
-        game_names = [game.get("Game_Name") for game in result.data if game.get("Game_Name")]
-        game_list = ", ".join(game_names)
-
-
-        await ctx.send(f"Current game: {game_list}")
-
+        await ctx.send(f"Current game for this channel: {game['Game_Name']}")
 
     @bot.command(name="listgame")
     async def games_cmd(ctx):
@@ -51,33 +37,47 @@ def setup_game_commands(bot, service: ServicesProtocol):
             return
         
         games = result.data
-
-        banners = {
-            1: [{"name": "Banner A1", "id": 101}, {"name": "Banner A2", "id": 102}],
-            2: [{"name": "Banner B1", "id": 201}, {"name": "Banner B2", "id": 202}],
-            3: [{"name": "Banner C1", "id": 301}, {"name": "Banner C2", "id": 302}],
-        }
         
         game_menu = SelectionMenu(bot, items=games, title="🎮 Select a Game")
 
         async def on_game_select(interaction: discord.Interaction, selected_game, index):
-            # Remove buttons from game menu
             await interaction.response.edit_message(embed=game_menu.build_embed(), view=None)
 
-            # Create banner menu based on selected game
-            # DO VALIDATION HERE: CHECK IF THE GAME HAS BANNER LIST
             game_id = selected_game["id"]
+            
+            # Get Banner list on service
             banner_list = service.banner_service.get_banners(game_id)
 
-            banner_menu = SelectionMenu(bot, items=banners[game_id], title=f"🎴 Select a Banner for {selected_game['name']}")
+            # DO VALIDATION HERE: CHECK IF THE GAME HAS BANNER LIST
+            if not banner_list.success:
+                await ctx.send(result.message)
+                return
+
+            # Create banner menu based on selected game
+            banner_menu = SelectionMenu(bot, items=banner_list.data, title=f"🎴 Select a Banner for {selected_game['name']}")
 
             async def on_banner_select(interaction: discord.Interaction, selected_banner, index):
-                # Remove buttons from banner menu
                 await interaction.response.edit_message(embed=banner_menu.build_embed(), view=None)
-                # Reply to user
+                
+                banner_id = selected_banner["id"]
+
+                # GET PULL HISTORY
+                history = service.pull_service.get_banner_pulls(banner_id)
+                
+                # DO VALIDATION HERE: CHECK IF THE GAME HAS BANNER LIST
+                if not history.success:
+                    await ctx.send(result.message)
+                    return
+
+                # Create Table of Pull history
+                view = PaginatedTable(
+                    items=history.data,
+                    title="History"
+                )
+
                 await interaction.followup.send(
-                    f"You selected **{selected_game['name']}** → **{selected_banner['name']}**!",
-                    ephemeral=True
+                    embed=view.build_embed(),
+                    view=view
                 )
 
             banner_menu.set_callback(on_banner_select)
