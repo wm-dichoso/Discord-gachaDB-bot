@@ -815,10 +815,14 @@ class DatabaseManager:
                         message="Couldn't add pull entry"
                     ) 
                 else:
+                    cur.execute("UPDATE banners SET last_updated = CURRENT_TIMESTAMP WHERE banner_id = ?",
+                                (banner_id,))
                     return Result.ok(
                         code="PULL_ENTRY_ADDED",
                         message="Pull entry added successfully"
-                    )
+                    )     
+                           
+
                    
         except sqlite3.Error as e:
             return Result.fail(
@@ -841,7 +845,7 @@ class DatabaseManager:
             )
         
         cur = self.connection.cursor()
-        cur.execute("SELECT entry_name, pity, notes, timestamp FROM pull_history WHERE banner_id = ?", (banner_id,))
+        cur.execute("SELECT pull_id, entry_name, pity, notes, timestamp FROM pull_history WHERE banner_id = ?", (banner_id,))
         res = cur.fetchall()
         if not res:
             return Result.fail(

@@ -46,15 +46,24 @@ def setup_game_commands(bot, service: ServicesProtocol):
             game_id = selected_game["id"]
             
             # Get Banner list on service
-            banner_list = service.banner_service.get_banners(game_id)
+            banners = service.banner_service.get_banners(game_id)
 
             # DO VALIDATION HERE: CHECK IF THE GAME HAS BANNER LIST
-            if not banner_list.success:
+            if not banners.success:
                 await ctx.send(result.message)
                 return
+            
+            banner_list = [
+            {
+                "name": f'ID: {b['Banner_ID']} | {b["Banner_Name"]} | At *{b["Current_Pity"]} pity*. |'
+                        f'Last accessed: {b["Last_Updated"]}',
+                "id": b["Banner_ID"]
+            }
+            for b in banners.data
+        ]
 
             # Create banner menu based on selected game
-            banner_menu = SelectionMenu(bot, items=banner_list.data, title=f"🎴 Select a Banner for {selected_game['name']}")
+            banner_menu = SelectionMenu(bot, items=banner_list, title=f"🎴 Select a Banner for {selected_game['name']}")
 
             async def on_banner_select(interaction: discord.Interaction, selected_banner, index):
                 await interaction.response.edit_message(embed=banner_menu.build_embed(), view=None)
@@ -66,7 +75,7 @@ def setup_game_commands(bot, service: ServicesProtocol):
                 
                 # DO VALIDATION HERE: CHECK IF THE GAME HAS BANNER LIST
                 if not history.success:
-                    await ctx.send(result.message)
+                    await ctx.send(history.message)
                     return
 
                 # Create Table of Pull history

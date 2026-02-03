@@ -27,12 +27,14 @@ class PaginatedTable(View):
             embed.description = "No data available."
             return embed
 
-        headers = page_items[0].keys()
         table = ""
+        headers = list(page_items[0].keys())
 
-        # Header
-        table += " | ".join(headers) + "\n"
-        table += "-|-".join(["---"] * len(headers)) + "\n"
+        header_line = " | ".join(headers)
+        separator = "=" * len(header_line)
+
+        table += header_line + "\n"
+        table += separator + "\n"
 
         # Rows
         for item in page_items:

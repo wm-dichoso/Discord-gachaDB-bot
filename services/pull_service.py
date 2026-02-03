@@ -8,7 +8,7 @@ class Pull_Service:
     def __init__(self, db: "DatabaseManager"):
         self.db = db
 
-    def add_pull_to_banner(self, entry_name, banner_id, pity, notes):
+    def add_pull_to_banner(self, entry_name, banner_id, pity, notes = None):
         if not entry_name:
             return Result.fail(
                 code="EMPTY_PULL_ENTRY_NAME",
@@ -67,12 +67,13 @@ class Pull_Service:
         pull_history = []
 
         for pull in banner_pulls.data:
-            entry, pity, notes, time = pull
+            id, entry, pity, notes, time = pull
             pull_history.append({
+                "ID": id,
+                "Timestamp": time,
                 "Pity": pity,
                 "Name": entry,
-                "Notes": notes,
-                "Timestamp": time
+                "Notes": notes
             })
 
         return Result.ok(
