@@ -58,7 +58,7 @@ def setup_banner_commands(bot, service: ServicesProtocol):
         
         banner_list = [
             {
-                "name": f'ID: {b['Banner_ID']} | {b["Banner_Name"]} | At *{b["Current_Pity"]} pity*. |'
+                "name": f'ID: {b['Banner_ID']} | {b["Banner_Name"]} | At *{b["Current_Pity"]} pity*. | '
                         f'Last accessed: {b["Last_Updated"]}',
                 "id": b["Banner_ID"]
             }
@@ -145,18 +145,75 @@ def setup_banner_commands(bot, service: ServicesProtocol):
             await ctx.send("⚠ SERVICE ERROR: " + str(add.message))
             return
     
-        await ctx.send(add.message)
+        await ctx.send(f"⚠ SERVICE MESSAGE: `{add.message}`", 
+                delete_after=10)
 
+
+    @bot.command(name="pity")
+    async def show_pity(ctx, banner_id):
+        if not banner_id:
+            await ctx.send(
+                "⚠ WARNING Command Format: *.pity* `Banner ID`", 
+                delete_after=10)
+            return
+        
+        # get game details then banner details
+
+        game = service.game_service.get_game_for_channel(ctx.channel.id)
+        if not game.success:
+            return await ctx.send("⚠ SERVICE ERROR: " + str(game.message))        
+        game_name = game.data["Game_Name"]
+        
+        banner = service.banner_service.get_banner(banner_id)
+        if not banner.success:
+            return await ctx.send("⚠ SERVICE ERROR: " + str(banner.message))        
+        banner_id, game_id, banner_name, current_pity, max_pity, last_updated = banner.data.values()
+
+        # embed for banner info
+        embed_build = (
+            SimpleEmbed(
+                title=game_name,
+                color=0x00AE86
+            )
+            .set_footer("Last Updated: " + str(last_updated))
+        )
+        table = f"Current Pity: {current_pity} / {max_pity}"
+        embed_build.add_field(banner_name, f"```{table}```")
+        embed = embed_build.build()
+
+        await ctx.send(embed=embed)
+            
         
     @bot.command(name="em")
-    async def embedder(ctx):
+    async def embed(ctx):
         embed = (
             SimpleEmbed(
                 title="List of Banners",
                 color=0x00AE86
             )
             .add_field("Weird", "The quick brown fox jumps over the lazy dog\nThe quick brown fox jumps over the lazy dog")
+            .add_field("Title in here", "Whatever this is", inline=True)
             .set_footer("Powered by discord.py")
             .build()
         )
+        await ctx.send(embed=embed)
+
+    @bot.command(name="emb")
+    async def embedder(ctx, *args):
+        try:
+            title, content, footer = parse_csv_args(args, 3)
+        except ValueError:
+            await ctx.send(
+                "⚠ WARNING Command Format: *.emb* `Title`, `content`, `footer: Optional`", 
+                embed=embed, delete_after=10)
+            return
+
+        build_embed = (
+            SimpleEmbed(
+                title = title,
+                color = 0x00AE86
+            )
+        )
+        build_embed.add_field(content)
+        embed = build_embed.build()
         await ctx.send(embed=embed)
