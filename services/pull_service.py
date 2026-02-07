@@ -27,6 +27,7 @@ class Pull_Service:
                 message="Pity number for the command is empty"
             )
         
+        # add to pull history
         pull_entry = self.db.add_pull(entry_name, banner_id, pity, notes)
         
         if not pull_entry.success:
@@ -34,6 +35,16 @@ class Pull_Service:
                 code="FAILED_ADDING_PULL_ENTRY",
                 message=pull_entry.message,
                 error=pull_entry.error
+            )
+        
+        # update banner pity too
+        update_pity = self.db.update_banner_pity(banner_id, pity)
+
+        if not update_pity.success:            
+            return Result.fail(
+                code="FAILED_ADDING_PULL_ENTRY",
+                message=update_pity.message,
+                error=update_pity.error            
             )
         
         return Result.ok(

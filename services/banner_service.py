@@ -138,8 +138,71 @@ class Banner_Service:
             message=update.message
         )
     
-    # other update but not really needed early on so XD
-    # - update max pity, update banner name
+    def require_params_with_codes(param_map):
+        for name, value in param_map.items():
+            if value is None:
+                return Result.fail(
+                    code=f"EMPTY_{name.upper()}",
+                    message=f"{name.replace('_', ' ').title()} is empty"
+                )
+        return None
+
+    def update_pity_detail(self, banner_id, new_pity, new_max_pity):
+        param_e = self.require_params_with_codes({
+            "banner_id": banner_id,
+            "new_pity": new_pity,
+            "new_max_pity": new_max_pity
+        })
+
+        if not param_e:
+            return param_e
+
+        update_pity = self.db.update_banner_pity(banner_id, new_pity)
+
+        if not update_pity.success:
+            return Result.fail(
+                code="UPDATE_PITY_FAILED",
+                message=update_pity.message,
+                error=update_pity.error
+            )
+        
+        update_max_pity = self.db.update_banner_max_pity(banner_id, new_max_pity)
+
+        if not update_max_pity.success:
+            return Result.fail(
+                code="UPDATE_MAX_PITY_FAILED",
+                message=update_max_pity.message,
+                error=update_max_pity.error
+            )
+        
+        return Result.ok(
+            code="UPDATE_PITY_SUCCESS",
+            message=update_pity.message
+        )
+    
+    def update_banner_name(self, banner_id, name):
+        param_e = self.require_params_with_codes({
+            "banner_id": banner_id,
+            "name": name
+        })
+
+        if not param_e:
+            return param_e
+        
+        update_name = self.db.update_banner_name(banner_id, name)
+
+        if not update_name.success:
+            return Result.fail(
+                code="UPDATE_BANNER_NAME_FAILED",
+                message=update_name.message,
+                error=update_name.error
+            )
+        
+        return Result.ok(
+            code="BANNER_NAME_UPDATED",
+            message=update_name.message
+        )
+        
 
     def delete_banner(self, banner_id):
         if not banner_id:

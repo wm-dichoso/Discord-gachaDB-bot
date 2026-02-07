@@ -694,9 +694,9 @@ class DatabaseManager:
                 cur.execute("UPDATE banners SET current_pity = ? WHERE banner_id = ?", (new_pity, banner_id,))
                 if not cur.rowcount > 0:
                     return Result.fail(
-                    code="BANNER_PITY_UPDATE_FAILED",
-                    message="Couldn't update banner pity"
-                ) 
+                        code="BANNER_PITY_UPDATE_FAILED",
+                        message="Couldn't update banner pity"
+                    ) 
                 else:
                     return Result.ok(
                         code="BANNER_PITY_UPDATED",
@@ -821,9 +821,7 @@ class DatabaseManager:
                         code="PULL_ENTRY_ADDED",
                         message="Pull entry added successfully"
                     )     
-                           
-
-                   
+                                              
         except sqlite3.Error as e:
             return Result.fail(
                 code="SQLITE_ERROR",

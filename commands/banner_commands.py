@@ -94,6 +94,40 @@ def setup_banner_commands(bot, service: ServicesProtocol):
         banner_menu.set_callback(on_banner_select)
         await banner_menu.send(ctx.channel)
 
+    @bot.command(name="ubp")
+    async def update_banner_pity(ctx, *, args: str):
+        try:
+            banner_id, pity, max_pity = parse_csv_args(args, 3)            
+        except ValueError:
+            await ctx.send(
+                "⚠ WARNING Command Format: *.ubp `Banner ID`, `pity`, `max pity`*", 
+                delete_after=5)
+            return
+
+        update = service.banner_service.update_pity_detail(banner_id, pity, max_pity)
+
+        if not update.success:
+            await ctx.send("⚠ SERVICE ERROR: " + str(update.message))
+                
+        await ctx.send(update.message)
+
+    @bot.command(name="ubn")
+    async def update_banner_name(ctx, *, args: str):
+        try:
+            banner_id, name = parse_csv_args(args, 2)
+        except ValueError:
+            await ctx.send(
+                "⚠ WARNING Command Format: *.ubn* `Banner ID`, `New Banner Name`", 
+                delete_after=5)
+            return
+
+        update = service.banner_service.update_banner_name(banner_id, name)
+
+        if not update.success:
+            await ctx.send("⚠ SERVICE ERROR: " + str(update.message))
+                
+        await ctx.send(update.message)
+
     @bot.command(name="pull")
     async def add_pull(ctx, *, args: str):
         get_game_id = service.game_service.get_game_for_channel(ctx.channel.id)
@@ -199,7 +233,7 @@ def setup_banner_commands(bot, service: ServicesProtocol):
         await ctx.send(embed=embed)
 
     @bot.command(name="emb")
-    async def embedder(ctx, *args):
+    async def embedder(ctx, *, args: str):
         try:
             title, content, footer = parse_csv_args(args, 3)
         except ValueError:
