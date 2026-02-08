@@ -51,6 +51,40 @@ class Pull_Service:
             code="PULL_ENTRY_ADDED",
             message=pull_entry.message
         )
+    
+    def edit_pull(self, pull_id, entry_name, pity, notes = None):
+        if not entry_name:
+            return Result.fail(
+                code="EMPTY_PULL_ENTRY_NAME",
+                message="Pull entry name for the command is empty"
+            )
+        
+        if not pull_id:
+            return Result.fail(
+                code="EMPTY_BANNER_ID",
+                message="Banner ID for the command is empty"
+            )
+        
+        if not pity:
+            return Result.fail(
+                code="EMPTY_PITY",
+                message="Pity number for the command is empty"
+            )
+        
+        # edit pull entry
+        pull_entry = self.db.edit_pull(pull_id, entry_name, pity, notes)
+        
+        if not pull_entry.success:
+            return Result.fail(
+                code="FAILED_ADDING_PULL_ENTRY",
+                message=pull_entry.message,
+                error=pull_entry.error
+            )
+        
+        return Result.ok(
+            code="PULL_ENTRY_EDITED",
+            message=pull_entry.message
+        )
 
     def get_banner_pulls(self, banner_id):
         if not banner_id:

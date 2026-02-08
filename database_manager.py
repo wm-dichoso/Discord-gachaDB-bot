@@ -70,7 +70,7 @@ class DatabaseManager:
                     current_pity INTEGER DEFAULT 0,
                     max_pity INTEGER DEFAULT 0,
                     last_updated TEXT DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (game_id) REFERENCES games(game_id)
+                    FOREIGN KEY (game_id) REFERENCES games(game_id) ON DELETE CASCADE
                 );
 
                 -- Pull history table
@@ -82,8 +82,8 @@ class DatabaseManager:
                     pity INTEGER DEFAULT 0,
                     notes TEXT,
                     timestamp TEXT DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (banner_id) REFERENCES banners(banner_id),
-                    FOREIGN KEY (game_id) REFERENCES games(game_id)
+                    FOREIGN KEY (banner_id) REFERENCES banners(banner_id) ON DELETE CASCADE,
+                    FOREIGN KEY (game_id) REFERENCES games(game_id) ON DELETE CASCADE
                 );
 
                 -- Sessions table
@@ -100,7 +100,7 @@ class DatabaseManager:
                     session_id INTEGER,
                     break_start TEXT DEFAULT CURRENT_TIMESTAMP,
                     break_end TEXT,
-                    FOREIGN KEY (session_id) REFERENCES sessions(session_id)
+                    FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE
                 );
 
                 -- Settings table
@@ -828,7 +828,54 @@ class DatabaseManager:
                 message="SQLite error during X",
                 error=str(e)
             )
-            
+    
+    def edit_pull(self, pull_id, entry_name, pity, notes):
+        if not self.is_connected():
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't add pull entry: Failed to connect to the database"
+            ) 
+        
+        # check if banner for this pull actually xists 
+        if not self.pull_entry_exists(pull_id):
+            return Result.fail(
+                    code="PULL_NOT_FOUND",
+                    message=f"PULL ENTRY with PULL id: {pull_id} does not exists."
+                )
+        try: 
+            with self.connection:        
+                cur = self.connection.cursor()
+                cur.execute("""
+                    UPDATE pull_history
+                    SET
+                        entry_name = ?,
+                        pity = ?,
+                        notes = ?
+                    WHERE pull_id = ?
+                    RETURNING banner_id
+                """, (entry_name, pity, notes, pull_id))
+
+                if not cur.rowcount > 0:
+                    return Result.fail(
+                        code="ADD_PULL_ENTRY_FAILED",
+                        message="Couldn't add pull entry"
+                    ) 
+                else:
+                    banner_id = cur.fetchone()[0]
+                    cur.execute("UPDATE banners SET last_updated = CURRENT_TIMESTAMP, current_pity = ? WHERE banner_id = ?",
+                                (pity, banner_id,))
+                    return Result.ok(
+                        code="PULL_ENTRY_ADDED",
+                        message="Pull entry added successfully"
+                    )     
+                                              
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
+
     def get_pulls_by_banner(self, banner_id):
         if not self.is_connected():
             return Result.fail(

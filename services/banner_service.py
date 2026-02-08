@@ -205,6 +205,7 @@ class Banner_Service:
         
 
     def delete_banner(self, banner_id):
+        # delete banner and history !!! well db already cascading so XD
         if not banner_id:
             return Result.fail(
                 code="EMPTY_BANNER_ID",
@@ -219,6 +220,7 @@ class Banner_Service:
                 message=delete.message,
                 error=delete.error
             )
+        
         
         return Result.ok(
             code="DELETE_SUCCESS",

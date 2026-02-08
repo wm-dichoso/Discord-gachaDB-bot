@@ -182,6 +182,46 @@ def setup_banner_commands(bot, service: ServicesProtocol):
         await ctx.send(f"⚠ SERVICE MESSAGE: `{add.message}`", 
                 delete_after=10)
 
+    @bot.command(name="bp")
+    async def update_pity(ctx, *, args: str):
+        try:
+            banner_id, data = parse_csv_args(args, 2)
+        except ValueError:
+            await ctx.send(
+                "⚠ WARNING Command Format: *.bp* `Banner ID`, `New Pity`", 
+                embed=embed, delete_after=10)
+            return
+        
+        # update then display banner data ig
+        update = service.banner_service.update_pity(banner_id, data)
+
+        if not update.success:
+            return await ctx.send("⚠ SERVICE ERROR: " + str(update.message))
+        
+        # get game details then banner details
+        game = service.game_service.get_game_for_channel(ctx.channel.id)
+        if not game.success:
+            return await ctx.send("⚠ SERVICE ERROR: " + str(game.message))
+        game_name = game.data["Game_Name"]
+        
+        banner = service.banner_service.get_banner(banner_id)
+        if not banner.success:
+            return await ctx.send("⚠ SERVICE ERROR: " + str(banner.message))        
+        banner_id, game_id, banner_name, current_pity, max_pity, last_updated = banner.data.values()
+
+        # embed for banner info
+        embed_build = (
+            SimpleEmbed(
+                title=game_name,
+                color=0x00AE86
+            )
+            .set_footer("Last Updated: " + str(last_updated))
+        )
+        table = f"Current Pity: {current_pity} / {max_pity}"
+        embed_build.add_field(banner_name, f"```{table}```")
+        embed = embed_build.build()
+
+        await ctx.send( "⚠ SERVICE MESSAGE: " + str(update.message),embed = embed)
 
     @bot.command(name="pity")
     async def show_pity(ctx, banner_id):
@@ -217,7 +257,49 @@ def setup_banner_commands(bot, service: ServicesProtocol):
 
         await ctx.send(embed=embed)
             
+    @bot.command(name="del_banner")
+    async def delete_banner(ctx, banner_id):
+        if not banner_id:
+            await ctx.send(
+                "⚠ WARNING Command Format: *.del_banner* `Banner ID`", 
+                delete_after=10)
+            return
+        delete = service.banner_service.delete_banner(banner_id)
+        if not delete.success:
+            return await ctx.send("⚠ SERVICE ERROR: " + str(delete.message))
         
+        await ctx.send("⚠ SERVICE MESSAGE: " + str(delete.message))
+
+    @bot.command(name="dp")
+    async def delete_pull(ctx, pull_id):
+        if not pull_id:
+            await ctx.send(
+                "⚠ WARNING Command Format: *.dp* `Pull ID`", 
+                delete_after=10)
+            return
+        delete = service.pull_service.delete_pull(pull_id)
+        if not delete.success:
+            return await ctx.send("⚠ SERVICE ERROR: " + str(delete.message))
+        
+        await ctx.send("⚠ SERVICE MESSAGE: " + str(delete.message))
+
+    @bot.command(name="edit_pull")
+    async def edit_entry(ctx, *, args: str):
+        try:
+            pull_id, entry_name, pity, notes = parse_csv_args(args, 4)
+        except ValueError:
+            await ctx.send(
+                "⚠ WARNING Command Format: *.edit_pull* `Pull ID`, `Entry Name`, `Pity`, `Notes: Optional`", 
+                delete_after=5)
+            return
+
+        update = service.pull_service.edit_pull(pull_id, entry_name, pity, notes)
+
+        if not update.success:
+            await ctx.send("⚠ SERVICE ERROR: " + str(update.message))
+                
+        await ctx.send(update.message)
+
     @bot.command(name="em")
     async def embed(ctx):
         embed = (
@@ -238,7 +320,7 @@ def setup_banner_commands(bot, service: ServicesProtocol):
             title, content, footer = parse_csv_args(args, 3)
         except ValueError:
             await ctx.send(
-                "⚠ WARNING Command Format: *.emb* `Title`, `content`, `footer: Optional`", 
+                "⚠ WARNING Command Format: *.emb* `Embed Title`, `sub title` ,`content`, `footer: Optional`", 
                 embed=embed, delete_after=10)
             return
 
