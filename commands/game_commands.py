@@ -94,3 +94,20 @@ def setup_game_commands(bot, service: ServicesProtocol):
 
         game_menu.set_callback(on_game_select)
         await game_menu.send(ctx.channel)
+
+    @bot.command(name="rename_game")
+    async def rename_game(ctx, new_game: str):
+        game = service.game_service.get_game_for_channel(ctx.channel.id)
+        if not game.success:
+            return await ctx.send(
+                "⚠ SERVICE ERROR:"+ str(game.message), 
+                delete_after=5)        
+        game_id = game.data['Game_ID']
+
+        rename = service.game_service.rename_game(game_id, new_game)
+        if not rename.success:
+            return await ctx.send(
+                "⚠ SERVICE ERROR:"+ str(rename.message), 
+                delete_after=5)
+        
+        await ctx.send(rename.message)
