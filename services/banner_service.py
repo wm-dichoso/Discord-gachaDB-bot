@@ -138,6 +138,7 @@ class Banner_Service:
             message=update.message
         )
     
+    # got this too late XD
     def require_params_with_codes(param_map):
         for name, value in param_map.items():
             if value is None:
