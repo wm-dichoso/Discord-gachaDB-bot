@@ -104,13 +104,91 @@ class Banner_Service:
 
 
     def add_session_break(self, session_id):
-        pass
+        param_e = self.require_params_with_codes({
+            "session_id": session_id
+        })
+
+        if not param_e:
+            return param_e
+        
+        # check if session name already exists !
+        start_break = self.db.add_session_break(session_id)
+        if not start_break.success:
+            return Result.fail(
+                code="ADD_BREAK_FAILED",
+                message=start_break.message,
+                error=start_break.error
+            )
+        
+        return Result.ok(
+            code="BREAK_STARTED",
+            message=start_break.message
+        )
 
     def end_break(self, session_id):
-        pass
+        param_e = self.require_params_with_codes({
+            "session_id": session_id
+        })
+
+        if not param_e:
+            return param_e
+        
+        # check if session name already exists !
+        end = self.db.end_session_break(session_id)
+        if not end.success:
+            return Result.fail(
+                code="END_BREAK_FAILED",
+                message=end.message,
+                error=end.error
+            )
+        
+        
+        return Result.ok(
+            code="BREAK_ENDED",
+            message=end.message
+        )
+        # when ending break, figure out how to send the accumulated time !
 
     def delete_session(self, session_id):
-        pass
+        param_e = self.require_params_with_codes({
+            "session_id": session_id
+        })
+
+        if not param_e:
+            return param_e
+        
+        # check if session name already exists !
+        delete_s = self.db.delete_session(session_id)
+        if not delete_s.success:
+            return Result.fail(
+                code="DELETE_SESSION_FAILED",
+                message=delete_s.message,
+                error=delete_s.error
+            )        
+        
+        return Result.ok(
+            code="SESSION_DELETED",
+            message=delete_s.message
+        )
 
     def delete_break(self, break_id):
-        pass
+        param_e = self.require_params_with_codes({
+            "break_id": break_id
+        })
+
+        if not param_e:
+            return param_e
+        
+        # check if session name already exists !
+        delete_B = self.db.delete_break_session(break_id)
+        if not delete_B.success:
+            return Result.fail(
+                code="DELETE_BREAK_FAILED",
+                message=delete_B.message,
+                error=delete_B.error
+            )        
+        
+        return Result.ok(
+            code="BREAK_DELETED",
+            message=delete_B.message
+        )
