@@ -1,6 +1,8 @@
+import logging
 from dataclasses import dataclass
 from typing import Any, Optional
 
+logger = logging.getLogger(__name__)  
 
 @dataclass
 class Result:
@@ -21,6 +23,12 @@ class Result:
 
     @classmethod
     def fail(cls, code: str, message: str = "", error: str = None):
+        logger.error(
+            "Result.fail triggered | code=%s | message=%s | error=%s",
+            code, message, error,
+            exc_info=bool(error)
+        )
+        
         return cls(
             success=False,
             code=code,

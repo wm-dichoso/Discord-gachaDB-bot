@@ -1,4 +1,5 @@
 import os
+import logging
 import discord
 from dotenv import load_dotenv
 from discord.ext import commands
@@ -10,12 +11,32 @@ from services import Services
 # import commands here
 from commands.game_commands import setup_game_commands
 from commands.banner_commands import setup_banner_commands
+from commands.session_commands import setup_session_commands
 
 # load all this?
 load_dotenv()
 db = DatabaseManager()
 db.connect_db()
 services = Services(db)
+
+# logger setup
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+formatter = logging.Formatter(
+    "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
+)
+
+# Console handler
+console = logging.StreamHandler()
+console.setFormatter(formatter)
+
+# File handler
+file_handler = logging.FileHandler("app.log")
+file_handler.setFormatter(formatter)
+
+logger.addHandler(console)
+logger.addHandler(file_handler)
 
 # BOT setup
 BOT_TOKEN = os.getenv('BOT_TOKEN')
@@ -43,6 +64,7 @@ async def on_command_error(ctx, error):
 # Commands here 
 setup_game_commands(bot, services)
 setup_banner_commands(bot, services)
+setup_session_commands(bot, services)
 
 # just try command XD
 @bot.command()

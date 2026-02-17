@@ -1,5 +1,6 @@
 from help import Result
 from typing import TYPE_CHECKING
+from datetime import datetime, timezone, timedelta
 
 if TYPE_CHECKING:
     from database_manager import DatabaseManager
@@ -63,11 +64,13 @@ class Banner_Service:
 
         for banner in banners.data:
             banner_id, banner_name, current_pity, last_updated = banner
+            utc = datetime.strptime(last_updated, "%Y-%m-%d %H:%M:%S")
+            local_last_updated = utc + timedelta(hours=8)
             banner_list.append({
                 "Banner_ID": banner_id,
                 "Banner_Name": banner_name, 
                 "Current_Pity": current_pity, 
-                "Last_Updated": last_updated
+                "Last_Updated": local_last_updated
             })
 
         return Result.ok(
@@ -93,14 +96,15 @@ class Banner_Service:
             )
         
         banner_id, game_id, banner_name, current_pity, max_pity, last_updated = banner.data
-        
+        utc = datetime.strptime(last_updated, "%Y-%m-%d %H:%M:%S")
+        local_last_updated = utc + timedelta(hours=8)
         banner_data = {
             "Banner_id":banner_id,
             "Game_id":game_id,
             "Banner_Name": banner_name, 
             "Current_Pity": current_pity, 
             "Max_Pity":max_pity,
-            "Last_Updated": last_updated
+            "Last_Updated": local_last_updated
         }
 
         # TODO: after fetching banner data, display pull history too !! 
@@ -139,7 +143,7 @@ class Banner_Service:
         )
     
     # got this too late XD
-    def require_params_with_codes(param_map):
+    def require_params_with_codes(self, param_map):
         for name, value in param_map.items():
             if value is None:
                 return Result.fail(
@@ -155,7 +159,7 @@ class Banner_Service:
             "new_max_pity": new_max_pity
         })
 
-        if not param_e:
+        if param_e:
             return param_e
 
         update_pity = self.db.update_banner_pity(banner_id, new_pity)
@@ -187,7 +191,7 @@ class Banner_Service:
             "name": name
         })
 
-        if not param_e:
+        if param_e:
             return param_e
         
         update_name = self.db.update_banner_name(banner_id, name)
@@ -204,7 +208,6 @@ class Banner_Service:
             message=update_name.message
         )
         
-
     def delete_banner(self, banner_id):
         # delete banner and history !!! well db already cascading so XD
         if not banner_id:
@@ -220,8 +223,7 @@ class Banner_Service:
                 code="DELETE_FAILED",
                 message=delete.message,
                 error=delete.error
-            )
-        
+            )        
         
         return Result.ok(
             code="DELETE_SUCCESS",

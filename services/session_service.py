@@ -1,14 +1,15 @@
 from help import Result
 from typing import TYPE_CHECKING
+from datetime import datetime, timezone, timedelta
 
 if TYPE_CHECKING:
     from database_manager import DatabaseManager
 
-class Banner_Service:
+class Session_Service:
     def __init__(self, db: "DatabaseManager"):
         self.db = db
 
-    def require_params_with_codes(param_map):
+    def require_params_with_codes(self, param_map):
         for name, value in param_map.items():
             if value is None:
                 return Result.fail(
@@ -19,13 +20,15 @@ class Banner_Service:
     
     # session service things !!
     # SQLITE CURRENT_TIMESTAMP DEFAULTS TO UTC. JUST CONVERT IT TO LOCAL TIME AFTER BACKEND XD
+    # ^^^ done?
 
     def start_session(self, name):
+        # check for missing parameter, if theres error, return it
         param_e = self.require_params_with_codes({
             "name": name
         })
 
-        if not param_e:
+        if param_e:
             return param_e
         
         # check if session name already exists !
@@ -39,33 +42,39 @@ class Banner_Service:
         
         return Result.ok(
             code="SESSION_STARTED",
-            message=start.message
+            message=start.message,
+            data=start.data[0]
         )
     
-    def end_session(self, session_id, end_time):
+    def end_session(self, session_id):
         param_e = self.require_params_with_codes({
-            "session_id": session_id,
-            "end_time": end_time
+            "session_id": session_id
         })
 
-        if not param_e:
+        if param_e:
             return param_e
         
         # check if session name already exists !
-        end = self.db.end_session(session_id, end_time)
-        if not end.success:
+        end_sesh = self.db.end_session(session_id)
+        if not end_sesh.success:
             return Result.fail(
                 code="END_SESSION_FAILED",
-                message=end.message,
-                error=end.error
+                message=end_sesh.message,
+                error=end_sesh.error
             )
-        
+        # convert duration (secs) to hh:mm:ss
+        duration = end_sesh.data[0]
+        duration_hms = f"{int(duration)//3600:02d}:{(int(duration)%3600)//60:02d}:{int(duration)%60:02d}"
+        session_detail = {
+            "session_name": end_sesh.data[1],
+            "duration": duration_hms
+        }
         
         return Result.ok(
             code="SESSION_ENDED",
-            message=end.message
-        )
-        # when ending session, figure out how to send the accumulated time !
+            message=end_sesh.message,
+            data=session_detail
+        )        
     
     def browse_sessions(self):
         sessions = self.db.browse_sessions()
@@ -88,12 +97,17 @@ class Banner_Service:
 
         for session in sessions.data:
             session_id, session_name, start_time, end_time, total_break_time = session
+            
+            start_utc_time = datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S")
+            end_utc_time = datetime.strptime(end_time, "%Y-%m-%d %H:%M:%S")
+            start_local_time = start_utc_time + timedelta(hours=8)
+            end_local_time = end_utc_time + timedelta(hours=8)
+
             sessions_list.append({
-            "Session_ID": session_id,
-            "Session_Name": session_name,
-            "Start_Time": start_time,
-            "End_Time": end_time,
-            "Total_Break_Time": total_break_time
+            "Start_Time": start_local_time,
+            "End_Time": end_local_time,
+            "Total_Break_Time": total_break_time,
+            "Session_Name": session_name
             })
 
         return Result.ok(
@@ -102,13 +116,12 @@ class Banner_Service:
             data=sessions_list
         )
 
-
     def add_session_break(self, session_id):
         param_e = self.require_params_with_codes({
             "session_id": session_id
         })
 
-        if not param_e:
+        if param_e:
             return param_e
         
         # check if session name already exists !
@@ -130,7 +143,7 @@ class Banner_Service:
             "session_id": session_id
         })
 
-        if not param_e:
+        if param_e:
             return param_e
         
         # check if session name already exists !
@@ -176,7 +189,7 @@ class Banner_Service:
             "break_id": break_id
         })
 
-        if not param_e:
+        if param_e:
             return param_e
         
         # check if session name already exists !

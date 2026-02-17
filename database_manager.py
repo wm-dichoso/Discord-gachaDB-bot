@@ -954,16 +954,18 @@ class DatabaseManager:
         try:
             with self.connection:        
                 cur = self.connection.cursor()            
-                cur.execute("INSERT INTO sessions (session_name) VALUES (?)", (session_name,))
+                cur.execute("INSERT INTO sessions (session_name) VALUES (?) RETURNING session_id", (session_name,))
+                res = cur.fetchone()
                 if not cur.rowcount > 0:
                     return Result.fail(
                         code="START_SESSION_FAILED",
-                        message="Couldn't start the session."
+                        message="Couldn't start the session."                        
                     ) 
                 else:
                     return Result.ok(
                         code="SESSION_STARTED",
-                        message="Successfully started a session."
+                        message="Successfully started a session.",
+                        data=res # return sesh id to the session service
                     )
                    
         except sqlite3.Error as e:
@@ -973,7 +975,7 @@ class DatabaseManager:
                 error=str(e)
             )
 
-    def end_session(self, session_id, end_time):
+    def end_session(self, session_id):
         if not self.is_connected():
             return Result.fail(
                 code="DB_CONNECTION_FAILED",
@@ -989,7 +991,11 @@ class DatabaseManager:
         try:
             with self.connection:        
                 cur = self.connection.cursor()
-                cur.execute("UPDATE sessions SET end_time = ? WHERE session_id = ?", (end_time, session_id,))
+                cur.execute("""
+                    UPDATE sessions SET end_time = CURRENT_TIMESTAMP WHERE session_id = ?
+                    RETURNING(julianday(CURRENT_TIMESTAMP) - julianday(start_time)) * 24 * 60 * 60 AS duration_seconds, session_name;
+                            """, (session_id,))
+                res = cur.fetchone()
                 if not cur.rowcount > 0:
                     return Result.fail(
                         code="END_SESSION_FAILED",
@@ -998,7 +1004,8 @@ class DatabaseManager:
                 else:
                     return Result.ok(
                         code="SESSION_STARTED",
-                        message="Successfully ended a session."
+                        message="Successfully ended a session.",
+                        data=res
                     )
                    
         except sqlite3.Error as e:
