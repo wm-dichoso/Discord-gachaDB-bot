@@ -8,11 +8,13 @@ from UI.SimpleEmbed import SimpleEmbed
 
 # save session data here?
 session_id = 0
+session_name = ""
+session_break_id = 0
 
 def setup_session_commands(bot, service: ServicesProtocol):
     @bot.command(name="sesh")
     async def start_session(ctx, *, name: str):
-        global session_id
+        global session_id, session_name
         if not session_id == 0:
             await ctx.send("⚠ SERVICE ERROR: " + "Session already started. Cannot start another session.", delete_after=5)
             return
@@ -24,8 +26,9 @@ def setup_session_commands(bot, service: ServicesProtocol):
             return
         
         session_id = start.data
+        session_name = name
 
-        await ctx.send(start.message + "*" + name +"* On session id: "+ str(start.data))
+        await ctx.send(start.message + " *" + name +"* On session id: "+ str(start.data))
 
     @bot.command(name="end")
     async def end_sesh(ctx):
@@ -59,7 +62,49 @@ def setup_session_commands(bot, service: ServicesProtocol):
 
         await ctx.send(embed=view.build_embed(), view=view)
 
-    # TODO: add session's break time
-    # end the break
+    @bot.command(name="brk")
+    async def add_break(ctx):
+        global session_id, session_name, session_break_id
+        if session_id == 0:
+            await ctx.send("⚠ SERVICE ERROR: " + "No active session to add break to.", delete_after=5)
+            return
+        
+        if not session_break_id == 0:
+            await ctx.send("⚠ SERVICE ERROR: " + "Break session already active.", delete_after=5)
+            return
+        
+        break_start = service.session_service.add_session_break(session_id)
+
+        if not break_start.success:
+            await ctx.send("⚠ SERVICE ERROR: " + str(break_start.message), delete_after=5)
+            return
+        
+        session_break_id = break_start.data
+        
+        await ctx.send(str(break_start.message) + " For the Session name: *" + session_name+ "*")
+
+    @bot.command(name="end_brk")
+    async def end_break(ctx):
+        global session_id, session_name, session_break_id
+        if session_id == 0:
+            await ctx.send("⚠ SERVICE ERROR: " + "No active session to end break for.", delete_after=5)
+            return
+        
+        if session_break_id == 0:
+            await ctx.send("⚠ SERVICE ERROR: " + "No active break session to end.", delete_after=5)
+            return
+        
+        break_end = service.session_service.end_break(session_break_id)
+
+        if not break_end.success:
+            await ctx.send("⚠ SERVICE ERROR: " + str(break_end.message), delete_after=5)
+            return
+        
+        session_break_id = 0
+        
+        await ctx.send("Break Session for session: **"+ session_name + "** ended in **" + str(break_end.data) + "** duration.")
+    # TODO: 
     # delete a session
     # delete break
+    # STATUS, check if theres current session on mem, check if theres break going. send the name etc etc
+    

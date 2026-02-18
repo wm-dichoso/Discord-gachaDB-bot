@@ -1054,7 +1054,8 @@ class DatabaseManager:
         try:
             with self.connection:        
                 cur = self.connection.cursor()            
-                cur.execute("INSERT INTO session_breaks (session_id) VALUES (?)", (session_id,))
+                cur.execute("INSERT INTO session_breaks (session_id) VALUES (?) RETURNING break_id", (session_id,))
+                res = cur.fetchone()
                 if not cur.rowcount > 0:
                     return Result.fail(
                         code="END_SESSION_FAILED",
@@ -1063,7 +1064,8 @@ class DatabaseManager:
                 else:
                     return Result.ok(
                         code="SESSION_BREAK_STARTED",
-                        message=f"Added new session break for the session id: {session_id}"
+                        message=f"Added new session break for the session id: {session_id}",
+                        data = res
                     )
                    
         except sqlite3.Error as e:
@@ -1087,18 +1089,43 @@ class DatabaseManager:
             ) 
         
         try: 
-            with self.connection:        
+            with self.connection:
                 cur = self.connection.cursor()
-                cur.execute("UPDATE session_breaks SET break_end = CURRENT_TIMESTAMP WHERE break_id = ?", (break_session_id,))
+
+                cur.execute("""
+                    UPDATE session_breaks
+                    SET break_end = CURRENT_TIMESTAMP
+                    WHERE break_id = ?
+                """, (break_session_id,))
+
+                cur.execute("""
+                    UPDATE sessions
+                    SET total_break_time = COALESCE(total_break_time, 0) +
+                        (
+                            SELECT strftime('%s', break_end) - strftime('%s', break_start)
+                            FROM session_breaks
+                            WHERE break_id = ?
+                        )
+                    WHERE session_id = (
+                            SELECT session_id
+                            FROM session_breaks
+                            WHERE break_id = ?
+                        )
+                    RETURNING total_break_time
+                """, (break_session_id, break_session_id))
+
+                res = cur.fetchone()
+
                 if not cur.rowcount > 0:
                     return Result.fail(
-                        code="END_SESSION_BREAK_FAILED",
+                        code="END_BREAK_SESSION_FAILED",
                         message="Couldn't end break for the session."
                     ) 
                 else:
                     return Result.ok(
-                        code="SESSION_BREAK_ENDED",
-                        message="Session Break Ended"
+                        code="BREAK_SESSION_ENDED",
+                        message="Session Break Ended",
+                        data=res
                     )
                    
         except sqlite3.Error as e:

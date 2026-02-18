@@ -135,7 +135,8 @@ class Session_Service:
         
         return Result.ok(
             code="BREAK_STARTED",
-            message=start_break.message
+            message=start_break.message,
+            data=start_break.data[0]
         )
 
     def end_break(self, session_id):
@@ -155,12 +156,16 @@ class Session_Service:
                 error=end.error
             )
         
-        
+        duration = end.data[0]
+        duration_hms = f"{int(duration)//3600:02d}:{(int(duration)%3600)//60:02d}:{int(duration)%60:02d}"
+        new_duration = duration_hms
+
         return Result.ok(
             code="BREAK_ENDED",
-            message=end.message
+            message=end.message,
+            data=new_duration
         )
-        # when ending break, figure out how to send the accumulated time !
+        # when ending break, figure out how to send the accumulated time ! <- done on db level XD
 
     def delete_session(self, session_id):
         param_e = self.require_params_with_codes({
