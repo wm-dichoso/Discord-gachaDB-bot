@@ -9,6 +9,7 @@ class Session_Service:
     def __init__(self, db: "DatabaseManager"):
         self.db = db
 
+    # HELPER FUNCTIONS 
     def require_params_with_codes(self, param_map):
         for name, value in param_map.items():
             if value is None:
@@ -17,6 +18,23 @@ class Session_Service:
                     message=f"{name.replace('_', ' ').title()} is empty"
                 )
         return None
+    
+    def format_seconds_to_hms(self, seconds: int | None) -> str | None:
+        # duration in seconds to H:MM:SS
+        if seconds is None:
+            return None
+        return str(timedelta(seconds=int(seconds)))
+        
+    def utc_string_to_local(dt_string: str | None):
+        # from UTC timestamp(sqlite default) to date plus time in 12hrs format
+        if dt_string is None:
+            return None
+
+        dt = datetime.strptime(dt_string, "%Y-%m-%d %H:%M:%S")
+        local_dt = dt.replace(tzinfo=timezone.utc).astimezone()
+
+        return local_dt.strftime("%b %d, %Y %I:%M %p")
+
     
     # session service things !!
     # SQLITE CURRENT_TIMESTAMP DEFAULTS TO UTC. JUST CONVERT IT TO LOCAL TIME AFTER BACKEND XD
@@ -64,7 +82,7 @@ class Session_Service:
             )
         # convert duration (secs) to hh:mm:ss
         duration = end_sesh.data[0]
-        duration_hms = f"{int(duration)//3600:02d}:{(int(duration)%3600)//60:02d}:{int(duration)%60:02d}"
+        duration_hms = self.format_seconds_to_hms(duration)
         session_detail = {
             "session_name": end_sesh.data[1],
             "duration": duration_hms
@@ -76,6 +94,67 @@ class Session_Service:
             data=session_detail
         )        
     
+    def get_current_session(self, session_id):
+        param_e = self.require_params_with_codes({
+            "session_id": session_id
+        })
+
+        if param_e:
+            return param_e
+        
+        session = self.db.get_current_session(session_id)
+        if not session.success:
+            return Result.fail(
+                code="FETCH_SESSION_FAILED",
+                message=session.message,
+                error=session.error
+            )
+
+        # convert duration (secs) to hh:mm:ss
+        duration = session.data[1]
+        duration_hms = self.format_seconds_to_hms(duration)
+        session_detail = {
+            "session_start_time": self.utc_string_to_local(session.data[0]),
+            "elapsed_duration": duration_hms,
+            "has_break": session.data[2], # add list of breaks here
+            "breaks": []
+        }
+        
+        # check for session breaks, if we have session breaks, get the list
+        if session.data[2] == 1:
+            breaks = self.db.get_breaks_for_session(session_id)
+            if not breaks.success:
+                return Result.fail(
+                code="FETCH_BREAKS_FOR_CURRENT_SESSION_FAILED",
+                message=breaks.message,
+                error=breaks.error
+            )
+            break_list = []
+            for sesh in breaks.data:
+                break_start, break_end, duration, is_fin = sesh
+                # convert timestamp to local time
+                start_local_time = self.utc_string_to_local(break_start)
+                if break_end is not None:
+                    end_local_time = self.utc_string_to_local(break_end)
+                else:
+                    end_local_time = None                
+                # convert duration
+                duration_hms = self.format_seconds_to_hms(duration)
+                break_list.append({
+                    "Start_Time": start_local_time,
+                    "End_Time": end_local_time,
+                    "Duration": duration_hms,
+                    "is_finished": is_fin
+                })
+            session_detail["breaks"] = break_list
+
+        return Result.ok(
+            code="SESSION_LIST_RETRIEVED",
+            message=session.message,
+            data=session_detail
+        )        
+
+
     def browse_sessions(self):
         sessions = self.db.browse_sessions()
 
@@ -98,16 +177,14 @@ class Session_Service:
         for session in sessions.data:
             session_id, session_name, start_time, end_time, total_break_time = session
             
-            start_utc_time = datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S")
-            end_utc_time = datetime.strptime(end_time, "%Y-%m-%d %H:%M:%S")
-            start_local_time = start_utc_time + timedelta(hours=8)
-            end_local_time = end_utc_time + timedelta(hours=8)
+            start_local_time = self.utc_string_to_local(start_time)
+            end_local_time = self.utc_string_to_local(end_time)
 
             sessions_list.append({
-            "Start_Time": start_local_time,
-            "End_Time": end_local_time,
-            "Total_Break_Time": total_break_time,
-            "Session_Name": session_name
+                "Start_Time": start_local_time,
+                "End_Time": end_local_time,
+                "Total_Break_Time": total_break_time,
+                "Session_Name": session_name
             })
 
         return Result.ok(
@@ -157,7 +234,7 @@ class Session_Service:
             )
         
         duration = end.data[0]
-        duration_hms = f"{int(duration)//3600:02d}:{(int(duration)%3600)//60:02d}:{int(duration)%60:02d}"
+        duration_hms = self.format_seconds_to_hms(duration)
         new_duration = duration_hms
 
         return Result.ok(
@@ -165,7 +242,6 @@ class Session_Service:
             message=end.message,
             data=new_duration
         )
-        # when ending break, figure out how to send the accumulated time ! <- done on db level XD
 
     def delete_session(self, session_id):
         param_e = self.require_params_with_codes({
@@ -204,7 +280,7 @@ class Session_Service:
                 code="DELETE_BREAK_FAILED",
                 message=delete_B.message,
                 error=delete_B.error
-            )        
+            )
         
         return Result.ok(
             code="BREAK_DELETED",

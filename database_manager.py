@@ -1135,6 +1135,57 @@ class DatabaseManager:
                 error=str(e)
             )
 
+    def get_current_session(self, session_id):
+        if not self.is_connected():
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't get current session: Failed to connect to the database"
+            ) 
+        
+        if not self.session_exists(session_id):
+            return Result.fail(
+                code="SESSION_NOT_FOUND",
+                message="Couldn't get current session: Session not found!"
+            ) 
+        try: 
+            with self.connection:        
+                cur = self.connection.cursor()
+                cur.execute("""
+                    SELECT
+                        s.start_time,                        
+                        strftime('%s', CURRENT_TIMESTAMP) - strftime('%s', s.start_time)
+                            AS duration_seconds,
+
+                        EXISTS (
+                            SELECT 1
+                            FROM session_breaks sb
+                            WHERE sb.session_id = s.session_id
+                        ) AS has_break
+
+                    FROM sessions s
+                    WHERE s.session_id = ?;
+                            """, (session_id,))
+                res = cur.fetchone()
+
+                if res is None:
+                    return Result.fail(
+                        code="NO_SESSIONS_FOUND",
+                        message="Couldn't fetch current session."
+                    ) 
+                else:
+                    return Result.ok(
+                        code="CURRENT_SESSION_FOUND",
+                        message="Session found!",
+                        data=res
+                    )
+                
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
+        
     def get_breaks_for_session(self, session_id):
         if not self.is_connected():
             return Result.fail(
@@ -1148,20 +1199,48 @@ class DatabaseManager:
                 message="Couldn't get breaks for this session: Session not found!"
             ) 
         
-        cur = self.connection.cursor()
-        cur.execute("SELECT break_start, break_end FROM session_breaks WHERE session_id = ?", (session_id,))
-        res = cur.fetchall()
+        try: 
+            with self.connection:        
+                cur = self.connection.cursor()
+                cur.execute("""
+                    SELECT
+                        break_start,
+                        break_end,
 
-        if not res:
+                        CASE
+                            WHEN break_end IS NOT NULL THEN
+                                strftime('%s', break_end) - strftime('%s', break_start)
+                            ELSE
+                                strftime('%s', CURRENT_TIMESTAMP) - strftime('%s', break_start)
+                        END AS duration_seconds,
+
+                        -- 1 if finished, 0 if still ongoing
+                        CASE
+                            WHEN break_end IS NOT NULL THEN 1
+                            ELSE 0
+                        END AS is_fin
+
+                    FROM session_breaks
+                    WHERE session_id = ?;
+                            """, (session_id,))
+                res = cur.fetchall()
+                if res is None:
+                    return Result.fail(
+                        code="NO_BREAK_SESSIONS_FOUND",
+                        message="Couldn't fetch breaks for this session."
+                    ) 
+                else:
+                    return Result.ok(
+                        code="BREAK_SESSIONS_FOUND",
+                        message="Breaks found for this session",
+                        data=res
+                    )
+                   
+        except sqlite3.Error as e:
             return Result.fail(
-                code="NO_BREAK_SESSIONS_FOUND",
-                message="Couldn't fetch breaks for this session."
-            ) 
-        else:
-            return Result.ok(
-                code="BREAK_SESSIONS_FOUND",
-                message="Breaks found for this session",
-                data=res
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
             )
 
     def delete_session(self, session_id):

@@ -103,8 +103,58 @@ def setup_session_commands(bot, service: ServicesProtocol):
         session_break_id = 0
         
         await ctx.send("Break Session for session: **"+ session_name + "** ended in **" + str(break_end.data) + "** duration.")
-    # TODO: 
-    # delete a session
-    # delete break
-    # STATUS, check if theres current session on mem, check if theres break going. send the name etc etc
+    
+    @bot.command(name="del_sesh")
+    async def delete_sessions(ctx, id: int):
+        delete_sesh = service.session_service.delete_session(id)
+
+        if not delete_sesh.success:
+            await ctx.send("⚠ SERVICE ERROR: " + str(delete_sesh.message), delete_after=5)
+            return
+        
+        await ctx.send(delete_sesh.message) 
+
+    @bot.command(name="del_br")
+    async def delete_break(ctx, id: int):
+        delete_break = service.session_service.delete_break(id)
+
+        if not delete_break.success:
+            await ctx.send("⚠ SERVICE ERROR: " + str(delete_break.message), delete_after=5)
+            return
+        
+        await ctx.send(delete_break.message) 
+    
+    @bot.command(name="sesh_stats")
+    async def session_status(ctx):
+        global session_id, session_name, session_break_id
+        if session_id == 0:
+            await ctx.send("⚠ SERVICE ERROR: " + "No active session.", delete_after=5)
+            return
+        
+        # if there is a session, send the name and current duration
+        session = service.session_service.get_current_session(session_id)
+        if not session.success:
+            await ctx.send("⚠ SERVICE ERROR: " + str(session.message), delete_after=5)
+            return
+        
+        session_detail = session.data
+
+        build_embed = (
+            SimpleEmbed(
+                title = "Current Session: " + session_name,
+                color = 0x00AE86
+            )
+        )
+        start_time = session_detail["session_start_time"]
+        build_embed.add_field(name="Started: ", value=start_time)
+        
+        duration = "**Going for "+str(session_detail["elapsed_duration"])+"**"
+        build_embed.add_field(name="Current Duration: ", value=duration)
+
+        if session_detail["has_break"] == 1:
+            build_embed.add_field(name="It had breaks", value="breaks ....")
+
+        embed = build_embed.build()
+        await ctx.send(embed=embed)
+        
     
