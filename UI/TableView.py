@@ -49,47 +49,38 @@ class PaginatedTable(View):
     # ---------- BUTTON MANAGEMENT ----------
 
     def _update_buttons(self):
-        self.clear_items()
-
-        self.add_item(
-            Button(
-                label="◀ Prev",
-                style=discord.ButtonStyle.secondary,
-                disabled=self.page <= 0,
-                custom_id="prev"
-            )
-        )
-
-        self.add_item(
-            Button(
-                label="Next ▶",
-                style=discord.ButtonStyle.secondary,
-                disabled=self.page >= self.max_page,
-                custom_id="next"
-            )
-        )
+        # Access the decorator-created buttons by their callback name
+        for item in self.children:
+            if item.custom_id == "prev":
+                item.disabled = self.page <= 0
+            elif item.custom_id == "next":
+                item.disabled = self.page >= self.max_page
 
     async def interaction_check(self, interaction: discord.Interaction):
         return True  # optionally restrict to original user
 
     async def on_timeout(self):
-        for item in self.children:
-            item.disabled = True
+        self.clear_items()
+
+        if hasattr(self, "message"):
+            await self.message.edit(view=self)
 
     # ---------- INTERACTION HANDLER ----------
 
-    @discord.ui.button(label="◀ Prev", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="◀ Prev", style=discord.ButtonStyle.secondary, custom_id="prev")
     async def prev_button(self, interaction: discord.Interaction, button: Button):
-        self.page -= 1
+        if self.page > 0:
+            self.page -= 1
         self._update_buttons()
         await interaction.response.edit_message(
             embed=self.build_embed(),
             view=self
         )
 
-    @discord.ui.button(label="Next ▶", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="Next ▶", style=discord.ButtonStyle.secondary, custom_id="next")
     async def next_button(self, interaction: discord.Interaction, button: Button):
-        self.page += 1
+        if self.page < self.max_page:
+            self.page += 1
         self._update_buttons()
         await interaction.response.edit_message(
             embed=self.build_embed(),

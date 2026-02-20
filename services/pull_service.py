@@ -1,5 +1,6 @@
 from help import Result
 from typing import TYPE_CHECKING
+from datetime import datetime, timezone, timedelta
 
 if TYPE_CHECKING:
     from database_manager import DatabaseManager
@@ -8,6 +9,16 @@ class Pull_Service:
     def __init__(self, db: "DatabaseManager"):
         self.db = db
 
+    def utc_string_to_local(self, dt_string: str | None):
+        # from UTC timestamp(sqlite default) to date plus time in 12hrs format
+        if dt_string is None:
+            return None
+
+        dt = datetime.strptime(dt_string, "%Y-%m-%d %H:%M:%S")
+        local_dt = dt.replace(tzinfo=timezone.utc).astimezone()
+
+        return local_dt.strftime("%b %d, %Y %I:%M %p")
+    
     def add_pull_to_banner(self, entry_name, banner_id, pity, notes = None):
         if not entry_name:
             return Result.fail(
@@ -113,9 +124,10 @@ class Pull_Service:
 
         for pull in banner_pulls.data:
             id, entry, pity, notes, time = pull
+            timestamp = self.utc_string_to_local(time)
             pull_history.append({
                 "ID": id,
-                "Timestamp": time,
+                "Timestamp": timestamp,
                 "Pity": pity,
                 "Name": entry,
                 "Notes": notes

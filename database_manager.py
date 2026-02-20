@@ -993,7 +993,12 @@ class DatabaseManager:
                 cur = self.connection.cursor()
                 cur.execute("""
                     UPDATE sessions SET end_time = CURRENT_TIMESTAMP WHERE session_id = ?
-                    RETURNING(julianday(CURRENT_TIMESTAMP) - julianday(start_time)) * 24 * 60 * 60 AS duration_seconds, session_name;
+                    RETURNING
+                    (
+                        (julianday(end_time) - julianday(start_time)) * 86400
+                        - COALESCE(total_break_time, 0)
+                    ) AS duration_seconds,
+                    session_name;
                             """, (session_id,))
                 res = cur.fetchone()
                 if not cur.rowcount > 0:
@@ -1023,7 +1028,11 @@ class DatabaseManager:
             ) 
         
         cur = self.connection.cursor()
-        cur.execute("SELECT * FROM sessions")
+        cur.execute("""
+        SELECT session_id, session_name, start_time, end_time, total_break_time, 
+        ((julianday(end_time) - julianday(start_time)) * 86400)AS duration 
+        FROM sessions
+                    """)
         res = cur.fetchall()
 
         if not res:
@@ -1111,8 +1120,13 @@ class DatabaseManager:
                             FROM session_breaks
                             WHERE break_id = ?
                         )
-                    RETURNING total_break_time
-                """, (break_session_id, break_session_id))
+                    RETURNING
+                    (
+                        SELECT strftime('%s', break_end) - strftime('%s', break_start)
+                        FROM session_breaks
+                        WHERE break_id = ?
+                    ) AS break_duration_seconds;
+                """, (break_session_id, break_session_id, break_session_id))
 
                 res = cur.fetchone()
 

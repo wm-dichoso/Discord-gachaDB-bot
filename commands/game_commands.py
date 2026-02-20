@@ -81,13 +81,16 @@ def setup_game_commands(bot, service: ServicesProtocol):
                 # Create Table of Pull history
                 view = PaginatedTable(
                     items=history.data,
-                    title="History"
+                    title="History",
+                    timeout=60
                 )
 
-                await interaction.followup.send(
+                message = await interaction.followup.send(
                     embed=view.build_embed(),
                     view=view
                 )
+
+                view.message = message
 
             banner_menu.set_callback(on_banner_select)
             await banner_menu.send(ctx.channel)

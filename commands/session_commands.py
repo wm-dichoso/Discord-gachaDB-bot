@@ -57,10 +57,13 @@ def setup_session_commands(bot, service: ServicesProtocol):
 
         view = PaginatedTable(
             items=result.data,
-            title="Session Lists"
+            title="Session Lists",
+            timeout=60
         )
 
-        await ctx.send(embed=view.build_embed(), view=view)
+        message = await ctx.send(embed=view.build_embed(), view=view)
+
+        view.message = message
 
     @bot.command(name="brk")
     async def add_break(ctx):
@@ -152,7 +155,10 @@ def setup_session_commands(bot, service: ServicesProtocol):
         build_embed.add_field(name="Current Duration: ", value=duration)
 
         if session_detail["has_break"] == 1:
-            build_embed.add_field(name="It had breaks", value="breaks ....")
+            break_list = ""
+            for br in session_detail["breaks"]:
+                break_list += "Started: " + str(br["Start_Time"]) + " Ended: "+ str(br["End_Time"] ) + "\n **Duration: "+str(br["Duration"])+" **\n"
+            build_embed.add_field(name="Break List", value=break_list)
 
         embed = build_embed.build()
         await ctx.send(embed=embed)

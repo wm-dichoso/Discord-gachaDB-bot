@@ -25,7 +25,7 @@ class Session_Service:
             return None
         return str(timedelta(seconds=int(seconds)))
         
-    def utc_string_to_local(dt_string: str | None):
+    def utc_string_to_local(self, dt_string: str | None):
         # from UTC timestamp(sqlite default) to date plus time in 12hrs format
         if dt_string is None:
             return None
@@ -175,16 +175,22 @@ class Session_Service:
         sessions_list = []
 
         for session in sessions.data:
-            session_id, session_name, start_time, end_time, total_break_time = session
+            session_id, session_name, start_time, end_time, total_break_time, duration = session
             
             start_local_time = self.utc_string_to_local(start_time)
             end_local_time = self.utc_string_to_local(end_time)
+            duration_hms = str(self.format_seconds_to_hms(duration)) + " elapsed"
+            name_formatted = "└──> " + str(session_id) + " - " + str(session_name)
+
+            if total_break_time is not None:
+                total_break_time = str(total_break_time) + " s"
 
             sessions_list.append({
                 "Start_Time": start_local_time,
                 "End_Time": end_local_time,
                 "Total_Break_Time": total_break_time,
-                "Session_Name": session_name
+                "Session_Name": name_formatted,
+                "Duration": duration_hms
             })
 
         return Result.ok(
@@ -248,10 +254,9 @@ class Session_Service:
             "session_id": session_id
         })
 
-        if not param_e:
+        if param_e:
             return param_e
         
-        # check if session name already exists !
         delete_s = self.db.delete_session(session_id)
         if not delete_s.success:
             return Result.fail(

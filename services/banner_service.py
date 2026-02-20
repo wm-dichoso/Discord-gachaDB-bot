@@ -9,6 +9,16 @@ class Banner_Service:
     def __init__(self, db: "DatabaseManager"):
         self.db = db
 
+    def utc_string_to_local(self, dt_string: str | None):
+        # from UTC timestamp(sqlite default) to date plus time in 12hrs format
+        if dt_string is None:
+            return None
+
+        dt = datetime.strptime(dt_string, "%Y-%m-%d %H:%M:%S")
+        local_dt = dt.replace(tzinfo=timezone.utc).astimezone()
+
+        return local_dt.strftime("%b %d, %Y %I:%M %p")
+
     def create_banner(self, game_id, banner_name, current_pity, max_pity):
         if not game_id:
             return Result.fail(
@@ -64,8 +74,7 @@ class Banner_Service:
 
         for banner in banners.data:
             banner_id, banner_name, current_pity, last_updated = banner
-            utc = datetime.strptime(last_updated, "%Y-%m-%d %H:%M:%S")
-            local_last_updated = utc + timedelta(hours=8)
+            local_last_updated = self.utc_string_to_local(last_updated)
             banner_list.append({
                 "Banner_ID": banner_id,
                 "Banner_Name": banner_name, 
@@ -96,8 +105,7 @@ class Banner_Service:
             )
         
         banner_id, game_id, banner_name, current_pity, max_pity, last_updated = banner.data
-        utc = datetime.strptime(last_updated, "%Y-%m-%d %H:%M:%S")
-        local_last_updated = utc + timedelta(hours=8)
+        local_last_updated = self.utc_string_to_local(last_updated)
         banner_data = {
             "Banner_id":banner_id,
             "Game_id":game_id,

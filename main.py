@@ -70,6 +70,10 @@ setup_session_commands(bot, services)
 @bot.command()
 async def h(ctx):
     await ctx.send("hello im alive!!")
-
+# incase you forgot to close db on browser XD
+@bot.command()
+async def connect(ctx):
+    db.connect_db()
+    await ctx.send("Trying to connect")
 # run 
 bot.run(BOT_TOKEN)
