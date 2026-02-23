@@ -50,9 +50,10 @@ class DatabaseManager:
                 PRAGMA foreign_keys = ON;
                 -- Meta table
                 CREATE TABLE IF NOT EXISTS meta (
-                    version TEXT DEFAULT '1.0.0',
+                    id INTEGER PRIMARY KEY CHECK(id = 1),
+                    version TEXT DEFAULT '0.1',
                     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                    last_modified TEXT
+                    last_modified TEXT DEFAULT CURRENT_TIMESTAMP
                 );
 
                 -- Games table
@@ -105,11 +106,30 @@ class DatabaseManager:
 
                 -- Settings table
                 CREATE TABLE IF NOT EXISTS settings (
-                    id INTEGER DEFAULT 1 CHECK("id" = 1),
+                    id INTEGER DEFAULT 1 CHECK(id = 1),
                     pagination_size INTEGER DEFAULT 10,
                     features_enabled TEXT DEFAULT '{}',
                     PRIMARY KEY("id")
                 );
+                              
+                -- triggers
+                DROP TRIGGER IF EXISTS meta_timestamp_to_banner;
+                CREATE TRIGGER meta_timestamp_to_banner
+                AFTER UPDATE ON banners
+                BEGIN
+                    UPDATE meta
+                    SET last_modified = CURRENT_TIMESTAMP
+                    WHERE version = "0.1";
+                END;
+                              
+                DROP TRIGGER IF EXISTS meta_timestamp_to_history;
+                CREATE TRIGGER meta_timestamp_to_history
+                AFTER UPDATE ON pull_history
+                BEGIN
+                    UPDATE meta
+                    SET last_modified = CURRENT_TIMESTAMP
+                    WHERE version = "0.1";
+                END;
                 """)
         except sqlite3.OperationalError as e:
             return Result.fail(
@@ -251,11 +271,14 @@ class DatabaseManager:
                 code="META_FETCH_FAILED",
                 message="Couldn't get meta version"
             ) 
-        else: 
+        else:            
+            columns = [col[0] for col in cur.description]
+            meta = dict(zip(columns, res))
+
             return Result.ok(
                 code="META_FETCH_SUCCESS",
                 message="successfully obtained meta version",
-                data=res[0]
+                data=meta
             )
     
     def add_version(self, version):
@@ -277,7 +300,7 @@ class DatabaseManager:
                     message="Couldn't add version: version already exists"
                 )
                 else: #version does not exist 
-                    cur.execute("INSERT INTO meta (version, created_at, last_modified) VALUES (?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)", (version,))
+                    cur.execute("INSERT OR IGNORE INTO meta (id, version) VALUES (1, '0.1')", (version,))
                     return Result.ok(
                         code="VERSION_ADDED",
                         message=f"version {version} is added to the meta"
@@ -305,8 +328,8 @@ class DatabaseManager:
                 res = cur.fetchone()
                 if res is None:
                     return Result.fail(
-                        code="VERSION_ADD_FAIL",
-                        message="Couldn't add version: version already exists"
+                        code="VERSION_NOT_FOUND",
+                        message="Version does not exist"
                     )
                 else:
                     cur.execute("UPDATE meta SET last_modified = CURRENT_TIMESTAMP WHERE version = ?", (version,))

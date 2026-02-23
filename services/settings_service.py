@@ -1,5 +1,6 @@
 from help import Result
 from typing import TYPE_CHECKING
+from datetime import datetime, timezone
 
 if TYPE_CHECKING:
     from database_manager import DatabaseManager
@@ -8,6 +9,57 @@ class Setting_Service:
     def __init__(self, db: "DatabaseManager"):
         self.db = db
         self.pagination = int(10) # default at 10, set it on service XD
+
+    def utc_string_to_local(self, dt_string: str | None):
+        # from UTC timestamp(sqlite default) to date plus time in 12hrs format
+        if dt_string is None:
+            return None
+
+        dt = datetime.strptime(dt_string, "%Y-%m-%d %H:%M:%S")
+        local_dt = dt.replace(tzinfo=timezone.utc).astimezone()
+
+        return local_dt.strftime("%b %d, %Y %I:%M %p")
+    
+    # db META stuff
+    def update_db_version(self):
+        version = "0.1"
+
+        v = self.db.update_version(version)
+
+        if not v.success:
+            return Result.fail(
+                code="UPDATE_VERSION_FAILED",
+                message=v.message,
+                error=v.error
+            )
+        
+        return Result.ok(
+            code="VERSION_UPDATED",
+            message=v.message
+        )
+    
+    def get_db_meta(self):
+        v = self.db.get_meta_version()
+
+        if not v.success:
+            return Result.fail(
+                code="UPDATE_VERSION_FAILED",
+                message=v.message,
+                error=v.error
+            )
+        
+        meta = {
+            **v.data,
+            "created_at": self.utc_string_to_local(v.data["created_at"]),
+            "last_modified": self.utc_string_to_local(v.data["last_modified"])
+        }
+        
+        return Result.ok(
+            code="VERSION_UPDATED",
+            message=v.message,
+            data=meta
+        )
+    # settings
 
     def initialize_settings(self):
         setting = self.db.init_settings()

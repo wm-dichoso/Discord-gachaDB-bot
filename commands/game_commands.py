@@ -4,8 +4,37 @@ from services.interface import ServicesProtocol
 from services import Services
 from UI.SelectionMenu import SelectionMenu
 from UI.TableView import PaginatedTable
+from UI.SimpleEmbed import SimpleEmbed
 
 def setup_game_commands(bot, service: ServicesProtocol):
+    @bot.command(name="up")
+    async def update(ctx):
+        result = service.settings_service.update_db_version()
+        if not result.success:
+            await ctx.send(result.message)
+            return
+        
+        await ctx.send(f"Version Updated!")
+
+    @bot.command(name="db")
+    async def database(ctx):
+        result = service.settings_service.get_db_meta()
+
+        if not result.success:
+            await ctx.send(result.message)
+            return
+        
+        build_embed = (
+            SimpleEmbed(
+                title = "Database Version",
+                color = 0x00AE86
+            )
+        )
+        build_embed.add_field(name="Version: ", value=result.data["version"])
+        build_embed.add_field(name="Created: ", value=result.data["created_at"])
+        build_embed.add_field(name="Last Modified: ", value=result.data["last_modified"])
+        embed = build_embed.build()
+        await ctx.send(embed=embed)
 
     @bot.command(name="addgame")
     async def add_game(ctx, *, game_name: str):
