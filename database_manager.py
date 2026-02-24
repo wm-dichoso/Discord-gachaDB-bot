@@ -1393,7 +1393,7 @@ class DatabaseManager:
             )
         
         cur = self.connection.cursor()
-        cur.execute("SELECT * FROM settings")
+        cur.execute("SELECT pagination_size, features_enabled FROM settings")
         res = cur.fetchall()
 
         if not res:

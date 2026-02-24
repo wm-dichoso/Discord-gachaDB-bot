@@ -8,7 +8,10 @@ if TYPE_CHECKING:
 class Setting_Service:
     def __init__(self, db: "DatabaseManager"):
         self.db = db
-        self.pagination = int(10) # default at 10, set it on service XD
+        self.pagination = int(5) 
+        
+        # update pagination based on settings
+        self.get_all_settings()
 
     def utc_string_to_local(self, dt_string: str | None):
         # from UTC timestamp(sqlite default) to date plus time in 12hrs format
@@ -59,6 +62,7 @@ class Setting_Service:
             message=v.message,
             data=meta
         )
+    
     # settings
 
     def initialize_settings(self):

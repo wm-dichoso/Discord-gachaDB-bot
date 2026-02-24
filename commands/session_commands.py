@@ -56,6 +56,7 @@ def setup_session_commands(bot, service: ServicesProtocol):
             return
 
         view = PaginatedTable(
+            setting_service=service.settings_service,
             items=result.data,
             title="Session Lists",
             timeout=60

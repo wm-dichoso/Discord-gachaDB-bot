@@ -1,21 +1,22 @@
 import discord
 from discord.ext import commands
 from typing import List, Union, Callable
+from services.settings_service import Setting_Service
 
 class SelectionMenu(discord.ui.View):
     def __init__(
         self,
         bot: commands.Bot,
+        setting_service: Setting_Service,
         items: List[Union[str, dict]],
         title: str = "Select an item",
-        items_per_page: int = 10,
         timeout: int = None
     ):
         super().__init__(timeout=timeout)
         self.bot = bot
         self.items = items
         self.title = title
-        self.items_per_page = items_per_page
+        self.items_per_page = setting_service.pagination
         self.on_select: Callable = None
         self.current_page = 0
 

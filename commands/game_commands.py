@@ -7,7 +7,7 @@ from UI.TableView import PaginatedTable
 from UI.SimpleEmbed import SimpleEmbed
 
 def setup_game_commands(bot, service: ServicesProtocol):
-    @bot.command(name="up")
+    @bot.command(name="update_db")
     async def update(ctx):
         result = service.settings_service.update_db_version()
         if not result.success:
@@ -16,7 +16,7 @@ def setup_game_commands(bot, service: ServicesProtocol):
         
         await ctx.send(f"Version Updated!")
 
-    @bot.command(name="db")
+    @bot.command(name="db_meta")
     async def database(ctx):
         result = service.settings_service.get_db_meta()
 
@@ -67,7 +67,7 @@ def setup_game_commands(bot, service: ServicesProtocol):
         
         games = result.data
         
-        game_menu = SelectionMenu(bot, items=games, title="🎮 Select a Game")
+        game_menu = SelectionMenu(bot, setting_service=service.settings_service, items=games, title="🎮 Select a Game")
 
         async def on_game_select(interaction: discord.Interaction, selected_game, index):
             await interaction.response.edit_message(embed=game_menu.build_embed(), view=None)
@@ -92,7 +92,7 @@ def setup_game_commands(bot, service: ServicesProtocol):
         ]
 
             # Create banner menu based on selected game
-            banner_menu = SelectionMenu(bot, items=banner_list, title=f"🎴 Select a Banner for {selected_game['name']}")
+            banner_menu = SelectionMenu(bot, setting_service=service.settings_service, items=banner_list, title=f"🎴 Select a Banner for {selected_game['name']}")
 
             async def on_banner_select(interaction: discord.Interaction, selected_banner, index):
                 await interaction.response.edit_message(embed=banner_menu.build_embed(), view=None)
@@ -109,6 +109,7 @@ def setup_game_commands(bot, service: ServicesProtocol):
 
                 # Create Table of Pull history
                 view = PaginatedTable(
+                    setting_service=service.settings_service,
                     items=history.data,
                     title="History",
                     timeout=60

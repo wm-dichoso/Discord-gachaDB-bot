@@ -1,16 +1,15 @@
 import discord
 from discord.ui import View, Button
-
-ITEMS_PER_PAGE = 10 # pagination setting logic do here <----------
-
+from services.settings_service import Setting_Service
 
 class PaginatedTable(View):
-    def __init__(self, items, title="Table", page=0, timeout=120):
+    def __init__(self, setting_service: Setting_Service, items, title="Table", page=0, timeout=120):
         super().__init__(timeout=timeout)
+        self.ITEMS_PER_PAGE = setting_service.pagination
         self.items = items
         self.title = title
         self.page = page
-        self.max_page = max(0, (len(items) - 1) // ITEMS_PER_PAGE)
+        self.max_page = max(0, (len(items) - 1) // self.ITEMS_PER_PAGE)
 
         self._update_buttons()
 
@@ -19,8 +18,8 @@ class PaginatedTable(View):
     def build_embed(self):
         embed = discord.Embed(title=self.title, color=discord.Color.blurple())
 
-        start = self.page * ITEMS_PER_PAGE
-        end = start + ITEMS_PER_PAGE
+        start = self.page * self.ITEMS_PER_PAGE
+        end = start + self.ITEMS_PER_PAGE
         page_items = self.items[start:end]
 
         if not page_items:

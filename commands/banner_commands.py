@@ -65,7 +65,7 @@ def setup_banner_commands(bot, service: ServicesProtocol):
             for b in banners.data
         ]
 
-        banner_menu = SelectionMenu(bot, items=banner_list, title=f"🎴 Select a Banner for {game_name}")
+        banner_menu = SelectionMenu(bot, setting_service=service.settings_service, items=banner_list, title=f"🎴 Select a Banner for {game_name}")
 
         async def on_banner_select(interaction: discord.Interaction, selected_banner, index):
             await interaction.response.edit_message(embed=banner_menu.build_embed(), view=None)
@@ -82,6 +82,7 @@ def setup_banner_commands(bot, service: ServicesProtocol):
 
             # Create Table of Pull history
             view = PaginatedTable(
+                setting_service=service.settings_service,
                 items=history.data,
                 title="History",
                 timeout=60
