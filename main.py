@@ -60,7 +60,6 @@ async def on_command_error(ctx, error):
 
     await ctx.send("❌ An unexpected error occurred.")
 
-
 # Commands here 
 setup_game_commands(bot, services)
 setup_banner_commands(bot, services)
@@ -70,10 +69,12 @@ setup_session_commands(bot, services)
 @bot.command()
 async def h(ctx):
     await ctx.send("hello im alive!!")
+
 # incase you forgot to close db on browser XD
 @bot.command()
 async def connect(ctx):
     db.connect_db()
-    await ctx.send("Trying to connect")
-# run 
+    await ctx.send("Trying to connect to the database")
+
+# run the bot
 bot.run(BOT_TOKEN)

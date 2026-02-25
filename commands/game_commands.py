@@ -1,3 +1,4 @@
+import os
 from discord.ext import commands
 import discord
 from services.interface import ServicesProtocol
@@ -39,6 +40,16 @@ def setup_game_commands(bot, service: ServicesProtocol):
     @bot.command(name="addgame")
     async def add_game(ctx, *, game_name: str):
         result = service.game_service.create_game(ctx.channel.id, game_name)
+        
+        if not result.success:
+            await ctx.send(result.message)
+            return
+
+        await ctx.send(result.message)
+
+    @bot.command(name="update_pagination")
+    async def add_game(ctx, *, pagination: int):
+        result = service.settings_service.update_pagination(pagination)
         
         if not result.success:
             await ctx.send(result.message)
