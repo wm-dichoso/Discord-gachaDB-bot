@@ -103,6 +103,29 @@ class DatabaseManager:
                     break_end TEXT,
                     FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE
                 );
+                              
+                -- Currency logging table, for the balance
+                CREATE TABLE IF NOT EXISTS "currency_balance" (
+                    "id"	INTEGER,
+                    "game_id"	INTEGER,
+                    "currency"	INTEGER,
+                    "pull_token"	INTEGER,
+                    "goal"	INTEGER,
+                    PRIMARY KEY("id" AUTOINCREMENT),
+                    FOREIGN KEY("game_id") REFERENCES "" on DELETE CASCADE
+                );
+                              
+                -- currency logging, for the actual logs
+                CREATE TABLE "currency_logs" (
+                    "id"	INTEGER,
+                    "game_id"	INTEGER,
+                    "amount"	INTEGER,
+                    "action"	TEXT NOT NULL CHECK(action IN ('add', 'spend')),
+                    "reason"	REAL,
+                    "timestamp"	TEXT DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY("id" AUTOINCREMENT),
+                    FOREIGN KEY("game_id") REFERENCES "games"("game_id") ON DELETE CASCADE
+                );
 
                 -- Settings table
                 CREATE TABLE IF NOT EXISTS settings (
@@ -194,7 +217,13 @@ class DatabaseManager:
         cur.execute("SELECT * FROM session_breaks WHERE break_id = ?", (break_id,))
 
         return cur.fetchone() is not None
+    
+    def currency_for_game_exists(self, game_id):
+        cur = self.connection.cursor()
+        cur.execute("SELECT * FROM currency_balance WHERE game_id = ?", (game_id,))
 
+        return cur.fetchone() is not None
+    
     #endregion
 
     #region STATS HELPER for banners
@@ -1353,6 +1382,309 @@ class DatabaseManager:
                 error=str(e)
             )
     #endregion
+
+    #region For the currency logging !!!
+    def add_game_currency(self, game_id, currency, pull_token):
+        if not self.is_connected():
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't add currency to the game: Failed to connect to the database"
+            ) 
+        
+        # check if currency already exists first 
+        if self.currency_for_game_exists(game_id):
+            return Result.fail(
+                code="CURRENCY_ALREADY_EXISTS",
+                message="A currency for the game already exists"
+            )
+        
+        try:
+            with self.connection:        
+                cur = self.connection.cursor()
+                cur.execute("INSERT INTO currency_balance('game_id','currency','pull_token') VALUES (?, ?, ?)", (game_id, currency, pull_token,))
+                if not cur.rowcount > 0:
+                    return Result.fail(
+                            code="CURRENCY_ADD_FAILED",
+                            message="Failed to add currency for the game"
+                        )
+                else:
+                    return Result.ok(
+                        code="CURRENCY_ADDED",
+                        message="Currency for the game added successfully"
+                    )
+                   
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
+
+    # set goal for the game, display how many currency need for the goal.
+    def set_currency_goal(self, game_id, goal):
+        if not self.is_connected():
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't set currency goal: Failed to connect to the database"
+            ) 
+        
+        # check if currency already exists first 
+        if not self.currency_for_game_exists(game_id):
+            return Result.fail(
+                code="CURRENCY_DOES_NOT_EXISTS",
+                message="Currency for the game does not exists"
+            )
+        
+        try:
+            with self.connection:        
+                cur = self.connection.cursor()
+                cur.execute("UPDATE currency_balance SET 'goal' = ? WHERE game_id = ?", (game_id, goal,))
+                if not cur.rowcount > 0:
+                    return Result.fail(
+                            code="SET_CURRENCY_GOAL_FAILED",
+                            message="Failed to set currency goal for the game"
+                        )
+                else:
+                    return Result.ok(
+                        code="CURRENCY_GOAL_UPDATED",
+                        message="Currency goal for the game updated successfully"
+                    )
+                   
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
+
+    # just set the currency 0 as goal is reached / failed to reach 
+    def unset_currency_goal(self, game_id):
+        if not self.is_connected():
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't unset currency goal: Failed to connect to the database"
+            ) 
+        
+        # check if currency already exists first 
+        if not self.currency_for_game_exists(game_id):
+            return Result.fail(
+                code="CURRENCY_DOES_NOT_EXISTS",
+                message="Currency for the game does not exists"
+            )
+        
+        try:
+            with self.connection:        
+                cur = self.connection.cursor()
+                cur.execute("UPDATE currency_balance SET 'goal' = 0 WHERE game_id = ?", (game_id,))
+                if not cur.rowcount > 0:
+                    return Result.fail(
+                            code="UNSET_CURRENCY_GOAL_FAILED",
+                            message="Failed to unset currency goal for the game"
+                        )
+                else:
+                    return Result.ok(
+                        code="CURRENCY_GOAL_UPDATED",
+                        message="Currency goal for the game unset successfully"
+                    )
+                   
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
+
+    # get and display game currency. how many pulls can be made. how much chance to trigger a ssr with current pull amount
+    def get_currency_for_game(self, game_id):
+        if not self.is_connected():
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't get currency for the game: Failed to connect to the database"
+            ) 
+        
+        # check if currency already exists first 
+        if not self.currency_for_game_exists(game_id):
+            return Result.fail(
+                code="CURRENCY_DOES_NOT_EXISTS",
+                message="Currency for the game does not exists"
+            )
+        
+        try:
+            with self.connection:        
+                cur = self.connection.cursor()
+                cur.execute("SELECT currency, pull_token, goal FROM currency_balance WHERE game_id = ?", (game_id,))
+                res = cur.fetchone()
+                if res is None:
+                    return Result.fail(
+                            code="GET_CURRENCY_FAILED",
+                            message="Failed to unset currency goal for the game"
+                        )
+                else:
+                    return Result.ok(
+                        code="GET_CURRENCY",
+                        message="Currency for the game fetched successfully",
+                        data=res
+                    )
+                   
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
+
+    # used or added currency so update the game currency  -- TODO: service area check if spending or adding amounts!!
+    def update_currency_amount(self, game_id, amount):
+        if not self.is_connected():
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't update currency amount: Failed to connect to the database"
+            ) 
+        
+        # check if currency already exists first 
+        if not self.currency_for_game_exists(game_id):
+            return Result.fail(
+                code="CURRENCY_DOES_NOT_EXISTS",
+                message="Currency for the game does not exists"
+            )
+        
+        try:
+            with self.connection:        
+                cur = self.connection.cursor()
+                cur.execute("UPDATE currency_balance SET 'currency' = ? WHERE game_id = ?", (amount, game_id,))
+                if not cur.rowcount > 0:
+                    return Result.fail(
+                            code="UPDATE_CURRENCY_FAILED",
+                            message="Failed to update currency amount for this game"
+                        )
+                else:
+                    return Result.ok(
+                        code="CURRENCY_AMOUNT_UPDATED",
+                        message="Currency amount for the game updated successfully"
+                    )
+                   
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            ) 
+        
+    # used or added currency tickets so update the game currency
+    def update_currency_token(self, game_id, tickets):
+        if not self.is_connected():
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't update currency token: Failed to connect to the database"
+            ) 
+        
+        # check if currency already exists first 
+        if not self.currency_for_game_exists(game_id):
+            return Result.fail(
+                code="CURRENCY_DOES_NOT_EXISTS",
+                message="Currency for the game does not exists"
+            )
+        
+        try:
+            with self.connection:        
+                cur = self.connection.cursor()
+                cur.execute("UPDATE currency_balance SET 'pull_token' = ? WHERE game_id = ?", (tickets, game_id,))
+                if not cur.rowcount > 0:
+                    return Result.fail(
+                            code="UPDATE_CURRENCY_TOKENS_FAILED",
+                            message="Failed to update pull token for this game"
+                        )
+                else:
+                    return Result.ok(
+                        code="CURRENCY_TOKENS_UPDATED",
+                        message="Currency pull tokens for the game updated successfully"
+                    )
+                   
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            ) 
+    
+    # log adding or spending the currency of a game
+    def log_currency_action(self, game_id, amount, action, reason):
+        if not self.is_connected():
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't add currency to the game: Failed to connect to the database"
+            ) 
+        
+        # check if currency does exists first 
+        if not self.currency_for_game_exists(game_id):
+            return Result.fail(
+                code="CURRENCY_DOES_NOT_EXISTS",
+                message="Currency for the game does exists"
+            )
+        
+        try:
+            with self.connection:        
+                cur = self.connection.cursor()
+                cur.execute("INSERT INTO currency_logs('game_id','amount','action', 'reason') VALUES (?, ?, ?, ?)", (game_id, amount, action, reason,))
+                if not cur.rowcount > 0:
+                    return Result.fail(
+                            code="CURRENCY_ADD_LOG_FAILED",
+                            message="Failed to log currency for the game"
+                        )
+                else:
+                    return Result.ok(
+                        code="CURRENCY_ADDED",
+                        message="Currency action successfully logged"
+                    )
+                   
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
+
+    # get all the logs on the game currency 
+    def get_game_currency_logs(self, game_id):
+        if not self.is_connected():
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't get currency logs for the game: Failed to connect to the database"
+            ) 
+        
+        # check if currency already exists first 
+        if self.currency_for_game_exists(game_id):
+            return Result.fail(
+                code="CURRENCY_DOES_NOT_EXISTS",
+                message="Currency for the game does not exists"
+            )
+        
+        try:
+            with self.connection:        
+                cur = self.connection.cursor()
+                cur.execute("SELECT amount, action, reason, timestamp FROM currency_logs WHERE game_id = ?", (game_id,))
+                res = cur.fetchall()
+                if res is None:
+                    return Result.fail(
+                            code="GET_CURRENCY_LOGS_FAILED",
+                            message="Failed to get currency logs for the game"
+                        )
+                else:
+                    return Result.ok(
+                        code="FETCHED_CURRENCY_LOGS",
+                        message="Currency logs for the game fetched successfully",
+                        data=res
+                    )
+                   
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
+    
+    #endregion
+    
 
     #region for the settings table !!
 
