@@ -83,7 +83,7 @@ class Currency_Service:
         }
 
         return Result.ok(
-            code="BANNERS_RETRIEVED",
+            code="CURRENCY_RETRIEVED",
             message=currency.message,
             data=game_currency
         )
@@ -105,3 +105,80 @@ class Currency_Service:
                 message=goal.message,
                 error=goal.error
             )
+        
+        return Result.ok(
+            code="SET_GAME_CURRENCY_GOAL",
+            message=goal.message
+        )
+        
+    def unset_game_currency_goal(self, game_id):
+        param_e = self.require_params_with_codes({
+            "game_id": game_id
+        })
+
+        if param_e:
+            return param_e
+        
+        goal = self.db.unset_currency_goal(game_id)
+        
+        if not goal.success:
+            return Result.fail(
+                code="UNSET_CURRENCY_GOAL_FAILED",
+                message=goal.message,
+                error=goal.error
+            )
+        
+        return Result.ok(
+            code="UNSET_CURRENCY_GOAL_SUCCESS",
+            message=goal.message
+        )
+        
+    def update_currency_amount(self, game_id, amount):
+        param_e = self.require_params_with_codes({
+            "game_id": game_id,
+            "amount": amount
+        })
+
+        if param_e:
+            return param_e
+        
+        currency_amount = self.db.update_currency_amount(game_id, amount)
+        
+        if not currency_amount.success:
+            return Result.fail(
+                code="UPDATE_CURRENCY_AMOUNT_FAILED",
+                message=currency_amount.message,
+                error=currency_amount.error
+            )
+        
+        return Result.ok(
+            code="UPDATE_CURRENCY_AMOUNT_SUCCESSFULLY",
+            message=currency_amount.message
+        )    
+        
+    def update_currency_token(self, game_id, token):
+        param_e = self.require_params_with_codes({
+            "game_id": game_id,
+            "token": token
+        })
+
+        if param_e:
+            return param_e
+        
+        currency_token = self.db.update_currency_token(game_id, token)
+        
+        if not currency_token.success:
+            return Result.fail(
+                code="UPDATE_CURRENCY_TOKEN_FAILED",
+                message=currency_token.message,
+                error=currency_token.error
+            )
+        
+        return Result.ok(
+            code="UPDATE_CURRENCY_TOKEN_SUCCESSFULLY",
+            message=currency_token.message
+        )
+    
+    
+
+        
