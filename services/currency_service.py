@@ -154,7 +154,7 @@ class Currency_Service:
         return Result.ok(
             code="UPDATE_CURRENCY_AMOUNT_SUCCESSFULLY",
             message=currency_amount.message
-        )    
+        )
         
     def update_currency_token(self, game_id, token):
         param_e = self.require_params_with_codes({
@@ -178,7 +178,65 @@ class Currency_Service:
             code="UPDATE_CURRENCY_TOKEN_SUCCESSFULLY",
             message=currency_token.message
         )
+        
+    def log_currency_action(self, game_id, amount, action, reason):
+        param_e = self.require_params_with_codes({
+            "game_id": game_id,
+            "amount": amount,
+            "action": action,
+            "reason": reason
+        })
+
+        if param_e:
+            return param_e
+        
+        log_action = self.db.log_currency_action(game_id, amount, action, reason)
+        
+        if not log_action.success:
+            return Result.fail(
+                code="LOG_CURRENCY_ACTION_FAILED",
+                message=log_action.message,
+                error=log_action.error
+            )
+        
+        return Result.ok(
+            code="LOGGED_CURRENCY_ACTION_SUCCESSFULLY",
+            message=log_action.message
+        )
     
-    
+    def get_game_currency_action_logs(self, game_id):
+        param_e = self.require_params_with_codes({
+            "game_id": game_id
+        })
+
+        if param_e:
+            return param_e
+        
+        currency_logs = self.db.get_game_currency_logs(game_id)
+        
+        if not currency_logs.success:
+            return Result.fail(
+                code="GET_CURRENCY_LOGS_FAILED",
+                message=currency_logs.message,
+                error=currency_logs.error
+            )
+        
+        currency_log_list = []
+
+        for logs in currency_logs.data:
+            amount, action, reason, timestamp = logs
+            local_timestamp = self.utc_string_to_local(timestamp)
+            currency_logs.append({
+                "Amount": amount,
+                "Action": action, 
+                "Reason": reason, 
+                "Timestamp": local_timestamp
+            })
+
+        return Result.ok(
+            code="CURRENCY_LOGS_RETRIEVED",
+            message=currency_logs.message,
+            data=currency_log_list
+        )
 
         

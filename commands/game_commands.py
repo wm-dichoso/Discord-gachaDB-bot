@@ -22,7 +22,7 @@ def setup_game_commands(bot, service: ServicesProtocol):
         result = service.settings_service.get_db_meta()
 
         if not result.success:
-            await ctx.send(result.message)
+            await ctx.send("⚠ SERVICE ERROR:"+ str(result.message))
             return
         
         build_embed = (
@@ -155,3 +155,49 @@ def setup_game_commands(bot, service: ServicesProtocol):
                 delete_after=5)
         
         await ctx.send(rename.message)
+
+    # currency services
+    @bot.command(name="cur")
+    async def get_currency(ctx):
+        game = service.game_service.get_game_for_channel(ctx.channel.id)
+        if not game.success:
+            return await ctx.send(
+                "⚠ SERVICE ERROR:"+ str(game.message), 
+                delete_after=5)        
+        game_id = game.data['Game_ID']
+        game_name = game.data['Game_Name']
+
+        currency = service.currency_service.get_game_currency_info(game_id)
+        if not currency.success:
+            return await ctx.send(
+                "⚠ SERVICE ERROR:"+ str(currency.message), 
+                delete_after=5)
+        
+        build_embed = (
+            SimpleEmbed(
+                title = str(game_name),
+                color = 0x00AE86
+            )
+        )
+        build_embed.add_field(name="Game_Currency: ", value=currency.data["Game_Currency"])
+        build_embed.add_field(name="Pull Tokens Available: ", value=currency.data["Pull_Tokens"])
+        build_embed.add_field(name="Current Goal: ", value=currency.data["Goal"])
+        embed = build_embed.build()
+        await ctx.send(embed=embed)
+
+    @bot.command(name="install-cur")
+    async def get_currency(ctx, currency, pull_token):
+        game_info = service.game_service.get_game_for_channel(ctx.channel.id)
+        if not game_info.success:
+            return await ctx.send(
+                "⚠ SERVICE ERROR:"+ str(game_info.message), 
+                delete_after=5)        
+        game_id = game_info.data['Game_ID']
+        
+        currency_install = service.currency_service.install_game_currency(game_id, currency, pull_token)
+        if not currency_install.success:
+            return await ctx.send(
+                "⚠ SERVICE ERROR:"+ str(currency_install.message), 
+                delete_after=5)
+
+        await ctx.send(currency_install.message)
