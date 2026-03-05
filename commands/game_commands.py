@@ -201,3 +201,73 @@ def setup_game_commands(bot, service: ServicesProtocol):
                 delete_after=5)
 
         await ctx.send(currency_install.message)
+
+    @bot.command(name="goal")
+    async def set_currency_goal(ctx, goal: int):
+        game_info = service.game_service.get_game_for_channel(ctx.channel.id)
+        if not game_info.success:
+            return await ctx.send(
+                "⚠ SERVICE ERROR:"+ str(game_info.message), 
+                delete_after=5)        
+        game_id = game_info.data['Game_ID']
+        
+        currency_goal = service.currency_service.set_game_currency_goal(game_id, goal)
+        if not currency_goal.success:
+            return await ctx.send(
+                "⚠ SERVICE ERROR:"+ str(currency_goal.message), 
+                delete_after=5)
+
+        await ctx.send(currency_goal.message)
+        
+    @bot.command(name="done_goal")
+    async def unset_currency_goal(ctx):
+        game_info = service.game_service.get_game_for_channel(ctx.channel.id)
+        if not game_info.success:
+            return await ctx.send(
+                "⚠ SERVICE ERROR:"+ str(game_info.message), 
+                delete_after=5)        
+        game_id = game_info.data['Game_ID']
+        
+        currency_goal = service.currency_service.unset_game_currency_goal(game_id)
+        if not currency_goal.success:
+            return await ctx.send(
+                "⚠ SERVICE ERROR:"+ str(currency_goal.message), 
+                delete_after=5)
+
+        await ctx.send(currency_goal.message)
+        
+    @bot.command(name="cur-amount")
+    async def currency_update_amount(ctx, amount: int):
+        game_info = service.game_service.get_game_for_channel(ctx.channel.id)
+        if not game_info.success:
+            return await ctx.send(
+                "⚠ SERVICE ERROR:"+ str(game_info.message), 
+                delete_after=5)        
+        game_id = game_info.data['Game_ID']
+        
+        amount_update = service.currency_service.update_currency_amount(game_id, amount)
+        if not amount_update.success:
+            return await ctx.send(
+                "⚠ SERVICE ERROR:"+ str(amount_update.message), 
+                delete_after=5)
+
+        await ctx.send(amount_update.message)
+        
+    @bot.command(name="cur-token")
+    async def currency_update_token(ctx, token: int):
+        game_info = service.game_service.get_game_for_channel(ctx.channel.id)
+        if not game_info.success:
+            return await ctx.send(
+                "⚠ SERVICE ERROR:"+ str(game_info.message), 
+                delete_after=5)        
+        game_id = game_info.data['Game_ID']
+        
+        token_update = service.currency_service.update_currency_token(game_id, token)
+        if not token_update.success:
+            return await ctx.send(
+                "⚠ SERVICE ERROR:"+ str(token_update.message), 
+                delete_after=5)
+
+        await ctx.send(token_update.message)
+
+        # logs on every action like spending or pulling. figure it out how or where to put this logging
