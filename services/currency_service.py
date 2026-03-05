@@ -74,10 +74,10 @@ class Currency_Service:
                 error=currency.error
             )
 
-        currency, pull_token, goal = currency.data
+        cur, pull_token, goal = currency.data
 
         game_currency = {
-            "Game_Currency": currency,
+            "Game_Currency": cur,
             "Pull_Tokens": pull_token, 
             "Goal": goal
         }
@@ -133,10 +133,11 @@ class Currency_Service:
             message=goal.message
         )
         
-    def update_currency_amount(self, game_id, amount):
+    def update_currency_amount(self, game_id, amount, reason):
         param_e = self.require_params_with_codes({
             "game_id": game_id,
-            "amount": amount
+            "amount": amount,
+            "reason": reason
         })
 
         if param_e:
@@ -151,12 +152,25 @@ class Currency_Service:
                 error=currency_amount.error
             )
         
+        old_amount_value = currency_amount.data[0]
+        # log if spending or adding to currency
+        old_value = int(old_amount_value)
+        new_value = int(amount)
+
+        difference = new_value - old_value
+
+        if difference < 0:
+            self.log_currency_action(game_id, abs(difference), "spend", reason)
+
+        elif difference > 0:
+            self.log_currency_action(game_id, difference, "add", reason)
+        
         return Result.ok(
             code="UPDATE_CURRENCY_AMOUNT_SUCCESSFULLY",
             message=currency_amount.message
         )
         
-    def update_currency_token(self, game_id, token):
+    def update_currency_token(self, game_id, token, reason):
         param_e = self.require_params_with_codes({
             "game_id": game_id,
             "token": token
@@ -173,6 +187,19 @@ class Currency_Service:
                 message=currency_token.message,
                 error=currency_token.error
             )
+        
+        old_amount_value = currency_token.data[0]
+        # log if spending or adding to currency
+        old_value = int(old_amount_value)
+        new_value = int(token)
+
+        difference = new_value - old_value
+
+        if difference < 0:
+            self.log_currency_action(game_id, abs(difference), "spend", reason)
+
+        elif difference > 0:
+            self.log_currency_action(game_id, difference, "add", reason)
         
         return Result.ok(
             code="UPDATE_CURRENCY_TOKEN_SUCCESSFULLY",
@@ -226,7 +253,7 @@ class Currency_Service:
         for logs in currency_logs.data:
             amount, action, reason, timestamp = logs
             local_timestamp = self.utc_string_to_local(timestamp)
-            currency_logs.append({
+            currency_log_list.append({
                 "Amount": amount,
                 "Action": action, 
                 "Reason": reason, 

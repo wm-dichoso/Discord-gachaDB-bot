@@ -1551,6 +1551,9 @@ class DatabaseManager:
         try:
             with self.connection:        
                 cur = self.connection.cursor()
+                cur.execute("SELECT currency FROM currency_balance WHERE game_id = ?", (game_id,))
+                old_val = cur.fetchone()
+
                 cur.execute("UPDATE currency_balance SET 'currency' = ? WHERE game_id = ?", (amount, game_id,))
                 if not cur.rowcount > 0:
                     return Result.fail(
@@ -1560,7 +1563,8 @@ class DatabaseManager:
                 else:
                     return Result.ok(
                         code="CURRENCY_AMOUNT_UPDATED",
-                        message="Currency amount for the game updated successfully"
+                        message="Currency amount for the game updated successfully",
+                        data = old_val
                     )
                    
         except sqlite3.Error as e:
@@ -1588,6 +1592,8 @@ class DatabaseManager:
         try:
             with self.connection:        
                 cur = self.connection.cursor()
+                cur.execute("SELECT pull_token FROM currency_balance WHERE game_id = ?", (game_id,))
+                old_val = cur.fetchone()
                 cur.execute("UPDATE currency_balance SET 'pull_token' = ? WHERE game_id = ?", (tickets, game_id,))
                 if not cur.rowcount > 0:
                     return Result.fail(
@@ -1597,7 +1603,8 @@ class DatabaseManager:
                 else:
                     return Result.ok(
                         code="CURRENCY_TOKENS_UPDATED",
-                        message="Currency pull tokens for the game updated successfully"
+                        message="Currency pull tokens for the game updated successfully",
+                        data=old_val
                     )
                    
         except sqlite3.Error as e:
@@ -1653,10 +1660,10 @@ class DatabaseManager:
             ) 
         
         # check if currency already exists first 
-        if self.currency_for_game_exists(game_id):
+        if not self.currency_for_game_exists(game_id):
             return Result.fail(
                 code="CURRENCY_DOES_NOT_EXISTS",
-                message="Currency for the game does not exists"
+                message="Couldn't get currency logs for the game: Currency for the game does not exists"
             )
         
         try:

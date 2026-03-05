@@ -7,6 +7,12 @@ from UI.SelectionMenu import SelectionMenu
 from UI.TableView import PaginatedTable
 from UI.SimpleEmbed import SimpleEmbed
 
+def parse_csv_args(arg_string: str, expected: int):
+    parts = [p.strip() for p in arg_string.split(",")]
+    if len(parts) != expected:
+        raise ValueError
+    return parts
+
 def setup_game_commands(bot, service: ServicesProtocol):
     @bot.command(name="update_db")
     async def update(ctx):
@@ -186,7 +192,7 @@ def setup_game_commands(bot, service: ServicesProtocol):
         await ctx.send(embed=embed)
 
     @bot.command(name="install-cur")
-    async def get_currency(ctx, currency, pull_token):
+    async def install_currency(ctx, currency, pull_token):
         game_info = service.game_service.get_game_for_channel(ctx.channel.id)
         if not game_info.success:
             return await ctx.send(
@@ -237,7 +243,15 @@ def setup_game_commands(bot, service: ServicesProtocol):
         await ctx.send(currency_goal.message)
         
     @bot.command(name="cur-amount")
-    async def currency_update_amount(ctx, amount: int):
+    async def currency_update_amount(ctx, *, args: str):
+        try:
+            amount, reason = parse_csv_args(args, 2)            
+        except ValueError:
+            await ctx.send(
+                "⚠ WARNING Command Format: *.cur-amount* `New Amount`, `Reason`", 
+                delete_after=5)
+            return
+        
         game_info = service.game_service.get_game_for_channel(ctx.channel.id)
         if not game_info.success:
             return await ctx.send(
@@ -245,7 +259,7 @@ def setup_game_commands(bot, service: ServicesProtocol):
                 delete_after=5)        
         game_id = game_info.data['Game_ID']
         
-        amount_update = service.currency_service.update_currency_amount(game_id, amount)
+        amount_update = service.currency_service.update_currency_amount(game_id, amount, reason)
         if not amount_update.success:
             return await ctx.send(
                 "⚠ SERVICE ERROR:"+ str(amount_update.message), 
@@ -254,7 +268,15 @@ def setup_game_commands(bot, service: ServicesProtocol):
         await ctx.send(amount_update.message)
         
     @bot.command(name="cur-token")
-    async def currency_update_token(ctx, token: int):
+    async def currency_update_token(ctx, *, args:str):
+        try:
+            token, reason = parse_csv_args(args, 2)            
+        except ValueError:
+            await ctx.send(
+                "⚠ WARNING Command Format: *.cur-amount* `New Amount`, `Reason`", 
+                delete_after=5)
+            return
+        
         game_info = service.game_service.get_game_for_channel(ctx.channel.id)
         if not game_info.success:
             return await ctx.send(
@@ -262,7 +284,7 @@ def setup_game_commands(bot, service: ServicesProtocol):
                 delete_after=5)        
         game_id = game_info.data['Game_ID']
         
-        token_update = service.currency_service.update_currency_token(game_id, token)
+        token_update = service.currency_service.update_currency_token(game_id, token, reason)
         if not token_update.success:
             return await ctx.send(
                 "⚠ SERVICE ERROR:"+ str(token_update.message), 
@@ -270,4 +292,33 @@ def setup_game_commands(bot, service: ServicesProtocol):
 
         await ctx.send(token_update.message)
 
-        # logs on every action like spending or pulling. figure it out how or where to put this logging
+    # logs on every action like spending or pulling. figure it out how or where to put this logging <- figured it out, logs on service.
+    @bot.command(name="cur-logs")
+    async def currency_update_amount(ctx):
+        game_info = service.game_service.get_game_for_channel(ctx.channel.id)
+        if not game_info.success:
+            return await ctx.send(
+                "⚠ SERVICE ERROR:"+ str(game_info.message), 
+                delete_after=5)        
+        game_id = game_info.data['Game_ID']
+        
+        currency_logs = service.currency_service.get_game_currency_action_logs(game_id)
+        if not currency_logs.success:
+            return await ctx.send(
+                "⚠ SERVICE ERROR:"+ str(currency_logs.message), 
+                delete_after=5)
+
+        # Create Table of Currency Logs
+        view = PaginatedTable(
+            setting_service=service.settings_service,
+            items=currency_logs.data,
+            title="Currency Logs",
+            timeout=60
+        )
+
+        message = await ctx.send(
+            embed=view.build_embed(),
+            view=view
+        )
+
+        view.message = message
