@@ -153,6 +153,15 @@ class DatabaseManager:
                     SET last_modified = CURRENT_TIMESTAMP
                     WHERE version = "0.1";
                 END;
+                              
+                DROP TRIGGER IF EXISTS meta_timestamp_to_currency;
+                CREATE TRIGGER meta_timestamp_to_currency
+                AFTER UPDATE ON currency_balance
+                BEGIN
+                    UPDATE meta
+                    SET last_modified = CURRENT_TIMESTAMP
+                    WHERE version = "0.1";
+                END
                 """)
         except sqlite3.OperationalError as e:
             return Result.fail(
@@ -1438,7 +1447,7 @@ class DatabaseManager:
         try:
             with self.connection:        
                 cur = self.connection.cursor()
-                cur.execute("UPDATE currency_balance SET 'goal' = ? WHERE game_id = ?", (game_id, goal,))
+                cur.execute("UPDATE currency_balance SET 'goal' = ? WHERE game_id = ?", (goal, game_id,))
                 if not cur.rowcount > 0:
                     return Result.fail(
                             code="SET_CURRENCY_GOAL_FAILED",
@@ -1551,7 +1560,7 @@ class DatabaseManager:
         try:
             with self.connection:        
                 cur = self.connection.cursor()
-                cur.execute("SELECT currency FROM currency_balance WHERE game_id = ?", (game_id,))
+                cur.execute("SELECT currency, goal FROM currency_balance WHERE game_id = ?", (game_id,))
                 old_val = cur.fetchone()
 
                 cur.execute("UPDATE currency_balance SET 'currency' = ? WHERE game_id = ?", (amount, game_id,))

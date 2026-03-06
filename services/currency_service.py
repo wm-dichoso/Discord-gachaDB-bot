@@ -31,7 +31,8 @@ class Currency_Service:
     
     # 1: add currency for a game, 2: set a currency goal for the game, 3: unset goal
     # 4: get the currency info for a game, 5: update the currency amount, 6: update currency token
-    # 7: log currency actions, 8: get the game currency logs
+    # 7: log currency actions, 8: get the game currency logs, 
+    # 9: INCOME calculation <-- TODO: figure this out, calculate per week or something
 
     def install_game_currency(self, game_id, currency, pull_token):
         param_e = self.require_params_with_codes({
@@ -153,6 +154,7 @@ class Currency_Service:
             )
         
         old_amount_value = currency_amount.data[0]
+
         # log if spending or adding to currency
         old_value = int(old_amount_value)
         new_value = int(amount)
@@ -164,6 +166,20 @@ class Currency_Service:
 
         elif difference > 0:
             self.log_currency_action(game_id, difference, "add", reason)
+        
+        # check if goal is reached
+        goal = int(currency_amount.data[1])
+
+        if new_value >= goal:
+            goal_data = {
+                "Goal": goal
+            }
+
+            return Result.ok(
+                code="CURRENCY_UPDATED_AND_GOAL_REACHED",
+                message=currency_amount.message,
+                data = goal_data
+            )
         
         return Result.ok(
             code="UPDATE_CURRENCY_AMOUNT_SUCCESSFULLY",

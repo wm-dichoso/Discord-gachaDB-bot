@@ -317,23 +317,46 @@ def setup_banner_commands(bot, service: ServicesProtocol):
             .build()
         )
         await ctx.send(embed=embed)
-
+    
+    # embed not working :(
     @bot.command(name="emb")
     async def embedder(ctx, *, args: str):
-        try:
-            title, content, footer = parse_csv_args(args, 3)
-        except ValueError:
+        parts = [p.strip() for p in args.split(",", 2)]
+
+        if len(parts) < 2:
             await ctx.send(
-                "⚠ WARNING Command Format: *.emb* `Embed Title`, `sub title` ,`content`, `footer: Optional`", 
-                embed=embed, delete_after=10)
+                "⚠ WARNING Command Format: *.emb* `title`, `content`, `footer(optional)`",
+                delete_after=20
+            )
             return
+
+        title = parts[0]
+        content = parts[1]
+        footer = parts[2] if len(parts) >= 3 else None
 
         build_embed = (
             SimpleEmbed(
-                title = title,
+                title = "Embed Maker xdd",
                 color = 0x00AE86
             )
         )
-        build_embed.add_field(content)
+        build_embed.add_field(title, content)
+        if footer is not None:
+            build_embed.set_footer(footer)
+
         embed = build_embed.build()
+        await ctx.send(embed=embed)
+        
+    @bot.command(name="embed-pic")
+    async def embedder(ctx, *, url: str):
+        build_embed = (
+            SimpleEmbed(
+                title = "Image",
+                color = 0x00AE86
+            )
+        )
+        # build_embed.add_field(title, content)
+        build_embed.set_image(url)
+        embed = build_embed.build()
+        await ctx.message.delete()
         await ctx.send(embed=embed)

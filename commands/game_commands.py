@@ -169,7 +169,7 @@ def setup_game_commands(bot, service: ServicesProtocol):
         if not game.success:
             return await ctx.send(
                 "⚠ SERVICE ERROR:"+ str(game.message), 
-                delete_after=5)        
+                delete_after=20)        
         game_id = game.data['Game_ID']
         game_name = game.data['Game_Name']
 
@@ -177,7 +177,7 @@ def setup_game_commands(bot, service: ServicesProtocol):
         if not currency.success:
             return await ctx.send(
                 "⚠ SERVICE ERROR:"+ str(currency.message), 
-                delete_after=5)
+                delete_after=20)
         
         build_embed = (
             SimpleEmbed(
@@ -197,14 +197,14 @@ def setup_game_commands(bot, service: ServicesProtocol):
         if not game_info.success:
             return await ctx.send(
                 "⚠ SERVICE ERROR:"+ str(game_info.message), 
-                delete_after=5)        
+                delete_after=20)        
         game_id = game_info.data['Game_ID']
         
         currency_install = service.currency_service.install_game_currency(game_id, currency, pull_token)
         if not currency_install.success:
             return await ctx.send(
                 "⚠ SERVICE ERROR:"+ str(currency_install.message), 
-                delete_after=5)
+                delete_after=20)
 
         await ctx.send(currency_install.message)
 
@@ -214,14 +214,14 @@ def setup_game_commands(bot, service: ServicesProtocol):
         if not game_info.success:
             return await ctx.send(
                 "⚠ SERVICE ERROR:"+ str(game_info.message), 
-                delete_after=5)        
+                delete_after=20)        
         game_id = game_info.data['Game_ID']
         
         currency_goal = service.currency_service.set_game_currency_goal(game_id, goal)
         if not currency_goal.success:
             return await ctx.send(
                 "⚠ SERVICE ERROR:"+ str(currency_goal.message), 
-                delete_after=5)
+                delete_after=20)
 
         await ctx.send(currency_goal.message)
         
@@ -231,14 +231,14 @@ def setup_game_commands(bot, service: ServicesProtocol):
         if not game_info.success:
             return await ctx.send(
                 "⚠ SERVICE ERROR:"+ str(game_info.message), 
-                delete_after=5)        
+                delete_after=20)        
         game_id = game_info.data['Game_ID']
         
         currency_goal = service.currency_service.unset_game_currency_goal(game_id)
         if not currency_goal.success:
             return await ctx.send(
                 "⚠ SERVICE ERROR:"+ str(currency_goal.message), 
-                delete_after=5)
+                delete_after=20)
 
         await ctx.send(currency_goal.message)
         
@@ -249,21 +249,35 @@ def setup_game_commands(bot, service: ServicesProtocol):
         except ValueError:
             await ctx.send(
                 "⚠ WARNING Command Format: *.cur-amount* `New Amount`, `Reason`", 
-                delete_after=5)
+                delete_after=20)
             return
         
         game_info = service.game_service.get_game_for_channel(ctx.channel.id)
         if not game_info.success:
             return await ctx.send(
                 "⚠ SERVICE ERROR:"+ str(game_info.message), 
-                delete_after=5)        
+                delete_after=20)        
         game_id = game_info.data['Game_ID']
         
         amount_update = service.currency_service.update_currency_amount(game_id, amount, reason)
         if not amount_update.success:
             return await ctx.send(
                 "⚠ SERVICE ERROR:"+ str(amount_update.message), 
-                delete_after=5)
+                delete_after=20)
+        
+        if amount_update.data is not None:
+            build_embed = (
+                SimpleEmbed(
+                    title = "Goal Reached",
+                    color = 0x00AE86
+                )
+            )
+            embed_title = "Currency Goal of "+str(amount_update.data['Goal'])
+            content = "is now Reached"
+            build_embed.add_field(embed_title, content)
+            embed = build_embed.build()
+            await ctx.send(content=amount_update.message, embed=embed)
+            return
 
         await ctx.send(amount_update.message)
         
@@ -273,22 +287,22 @@ def setup_game_commands(bot, service: ServicesProtocol):
             token, reason = parse_csv_args(args, 2)            
         except ValueError:
             await ctx.send(
-                "⚠ WARNING Command Format: *.cur-amount* `New Amount`, `Reason`", 
-                delete_after=5)
+                "⚠ WARNING Command Format: *.cur-token* `New Amount`, `Reason`", 
+                delete_after=20)
             return
         
         game_info = service.game_service.get_game_for_channel(ctx.channel.id)
         if not game_info.success:
             return await ctx.send(
                 "⚠ SERVICE ERROR:"+ str(game_info.message), 
-                delete_after=5)        
+                delete_after=20)        
         game_id = game_info.data['Game_ID']
         
         token_update = service.currency_service.update_currency_token(game_id, token, reason)
         if not token_update.success:
             return await ctx.send(
                 "⚠ SERVICE ERROR:"+ str(token_update.message), 
-                delete_after=5)
+                delete_after=20)
 
         await ctx.send(token_update.message)
 
@@ -299,14 +313,14 @@ def setup_game_commands(bot, service: ServicesProtocol):
         if not game_info.success:
             return await ctx.send(
                 "⚠ SERVICE ERROR:"+ str(game_info.message), 
-                delete_after=5)        
+                delete_after=20)        
         game_id = game_info.data['Game_ID']
         
         currency_logs = service.currency_service.get_game_currency_action_logs(game_id)
         if not currency_logs.success:
             return await ctx.send(
                 "⚠ SERVICE ERROR:"+ str(currency_logs.message), 
-                delete_after=5)
+                delete_after=20)
 
         # Create Table of Currency Logs
         view = PaginatedTable(
