@@ -1,6 +1,7 @@
 from help import Result
 from typing import TYPE_CHECKING
 from datetime import datetime, timezone, timedelta
+import calendar
 
 if TYPE_CHECKING:
     from database_manager import DatabaseManager
@@ -282,4 +283,52 @@ class Currency_Service:
             data=currency_log_list
         )
 
+    # get weekly income, monthly income, projected monthly income
+    def get_currency_income(self, game_id):
+        param_e = self.require_params_with_codes({
+            "game_id": game_id
+        })
+
+        if param_e:
+            return param_e
         
+        income_data = []
+        
+        weekly_income = self.db.get_weekly_income(game_id)
+        
+        if not weekly_income.success:
+            return Result.fail(
+                code="GET_WEEKLY_INCOME_FAILED",
+                message=weekly_income.message,
+                error=weekly_income.error
+            )
+        
+        monthly_income = self.db.get_monthly_income(game_id)
+        
+        if not monthly_income.success:
+            return Result.fail(
+                code="GET_MONTHLY_INCOME_FAILED",
+                message=monthly_income.message,
+                error=monthly_income.error
+            )
+        
+        today = datetime.today()
+        current_day = today.day
+        days_in_month = calendar.monthrange(today.year, today.month)[1]
+
+        weekly = int(weekly_income.data[0])
+        monthly = int(monthly_income.data[0])
+        projection = (monthly / current_day) * days_in_month
+        
+        # projected = (current_month_income / current_day_of_month) * total_days_in_month
+        income_data.append({
+            "Weekly_Income": weekly,
+            "Weekly_Income": monthly,
+            "Projected": projection
+        })
+
+        return Result.ok(
+            code="INCOME_DATA_RETRIEVED",
+            message="Income data for the month successfully calculated",
+            data=income_data
+        )

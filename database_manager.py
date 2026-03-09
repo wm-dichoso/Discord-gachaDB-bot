@@ -1698,6 +1698,96 @@ class DatabaseManager:
                 message="SQLite error during X",
                 error=str(e)
             )
+
+    # get weekly income for the game, 
+    def get_weekly_income(self, game_id):
+        if not self.is_connected():
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't get weekly income for the game: Failed to connect to the database"
+            ) 
+        
+        # check if currency already exists first 
+        if not self.currency_for_game_exists(game_id):
+            return Result.fail(
+                code="CURRENCY_DOES_NOT_EXISTS",
+                message="Couldn't get weekly income for the game: Currency for the game does not exists"
+            )
+        
+        try:
+            with self.connection:        
+                cur = self.connection.cursor()
+                cur.execute("""
+                    SELECT SUM(amount)
+                    FROM currency_logs
+                    WHERE game_id = ?
+                    AND action = 'add'
+                    AND timestamp >= date('now', 'weekday 0', '-6 days');
+                            """, (game_id,))
+                res = cur.fetchone()
+                if res is None:
+                    return Result.fail(
+                            code="GET_WEEKLY_INCOME_FAILED",
+                            message="Failed to get the weekly income for the game"
+                        )
+                else:
+                    return Result.ok(
+                        code="FETCHED_WEEKLY_INCOME",
+                        message="Fetched weekly income for the game in the db.",
+                        data=res
+                    )
+                    
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
+        
+    # get monthly income for the game, 
+    def get_monthly_income(self, game_id):
+        if not self.is_connected():
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't get monthly income for the game: Failed to connect to the database"
+            ) 
+        
+        # check if currency already exists first 
+        if not self.currency_for_game_exists(game_id):
+            return Result.fail(
+                code="CURRENCY_DOES_NOT_EXISTS",
+                message="Couldn't get monthly income for the game: Currency for the game does not exists"
+            )
+        
+        try:
+            with self.connection:        
+                cur = self.connection.cursor()
+                cur.execute("""
+                    SELECT SUM(amount)
+                    FROM currency_logs
+                    WHERE game_id = ?
+                    AND action = 'add'
+                    AND strftime('%Y-%m', timestamp) = strftime('%Y-%m', 'now');
+                            """, (game_id,))
+                res = cur.fetchone()
+                if res is None:
+                    return Result.fail(
+                            code="GET_MONTHLY_INCOME_FAILED",
+                            message="Failed to get the monthly income for the game"
+                        )
+                else:
+                    return Result.ok(
+                        code="FETCHED_MONTHLY_INCOME",
+                        message="Fetched monthly income for the game in the db.",
+                        data=res
+                    )
+                    
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
     
     #endregion
     
