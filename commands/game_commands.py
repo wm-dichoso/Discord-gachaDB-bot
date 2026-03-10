@@ -272,7 +272,8 @@ def setup_game_commands(bot, service: ServicesProtocol):
                     color = 0x00AE86
                 )
             )
-            embed_title = "Currency Goal of "+str(amount_update.data['Goal'])
+            currency_goal = str(amount_update.data['Goal'])
+            embed_title = "Currency Goal of "+ currency_goal
             content = "is now Reached"
             build_embed.add_field(embed_title, content)
             embed = build_embed.build()
@@ -308,7 +309,7 @@ def setup_game_commands(bot, service: ServicesProtocol):
 
     # logs on every action like spending or pulling. figure it out how or where to put this logging <- figured it out, logs on service.
     @bot.command(name="cur-logs")
-    async def currency_update_amount(ctx):
+    async def currency_history(ctx):
         game_info = service.game_service.get_game_for_channel(ctx.channel.id)
         if not game_info.success:
             return await ctx.send(
@@ -336,3 +337,38 @@ def setup_game_commands(bot, service: ServicesProtocol):
         )
 
         view.message = message
+
+    # statistics
+    @bot.command(name="cur-stats")
+    async def currency_statistic(ctx):
+        game_info = service.game_service.get_game_for_channel(ctx.channel.id)
+        if not game_info.success:
+            return await ctx.send(
+                "⚠ SERVICE ERROR:"+ str(game_info.message), 
+                delete_after=20)        
+        game_id = game_info.data['Game_ID']
+        
+        currency_income = service.currency_service.get_currency_income(game_id)
+        if not currency_income.success:
+            return await ctx.send(
+                "⚠ SERVICE ERROR:"+ str(currency_income.message), 
+                delete_after=20)
+        
+        # weekly, monthly stats, and monthly projection
+        weekly = currency_income.data["Weekly_Income"]
+        monthly = currency_income.data["Monthly_Income"]
+        projected = currency_income.data["Projected"]
+        
+        # Embed for stats
+        build_embed = (
+            SimpleEmbed(
+                title = "Currency Stats",
+                color = 0x00AE86
+            )
+        )
+        build_embed.add_field(name="Weekly Income: ", value=weekly)
+        build_embed.add_field(name="Monthly Income: ", value=monthly)
+        build_embed.add_field(name="This Month Projected Income: ", value=projected)
+        embed = build_embed.build()
+
+        await ctx.send(embed=embed)

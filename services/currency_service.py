@@ -291,9 +291,7 @@ class Currency_Service:
 
         if param_e:
             return param_e
-        
-        income_data = []
-        
+                
         weekly_income = self.db.get_weekly_income(game_id)
         
         if not weekly_income.success:
@@ -321,11 +319,11 @@ class Currency_Service:
         projection = (monthly / current_day) * days_in_month
         
         # projected = (current_month_income / current_day_of_month) * total_days_in_month
-        income_data.append({
+        income_data = {
             "Weekly_Income": weekly,
-            "Weekly_Income": monthly,
+            "Monthly_Income": monthly,
             "Projected": projection
-        })
+        }
 
         return Result.ok(
             code="INCOME_DATA_RETRIEVED",
