@@ -99,18 +99,44 @@ class Currency_Service:
         if param_e:
             return param_e
         
-        goal = self.db.set_currency_goal(game_id, goal)
+        # set goal, return the current balance, then compute how much time needed for the goal
+        currency_goal = self.db.set_currency_goal(game_id, goal)
         
-        if not goal.success:
+        if not currency_goal.success:
             return Result.fail(
                 code="SET_CURRENCY_GOAL_FAILED",
-                message=goal.message,
-                error=goal.error
+                message=currency_goal.message,
+                error=currency_goal.error
             )
         
+        current_balance = currency_goal.data[0]
+        
+        # get average for the last 30 days for computation
+        month_income = self.db.get_last_30days_income(game_id)
+        if not month_income.success:
+            return Result.fail(
+                code="COMPUTE_CURRENCY_GOAL_FAILED",
+                message=month_income.message,
+                error=month_income.error
+            )
+        
+        last_30days_income = int(month_income.data[0] or 0)
+        average_income = last_30days_income / 30
+        
+        # compute for days needed to reach the goal
+        goal_needed = goal - current_balance
+        days_needed = goal_needed / average_income
+        
+        goal_data = {
+            "Currency_Goal" : goal,
+            "Current_balance": current_balance,
+            "Estimate_days_needed": days_needed
+        }
+
         return Result.ok(
             code="SET_GAME_CURRENCY_GOAL",
-            message=goal.message
+            message=currency_goal.message,
+            data = goal_data
         )
         
     def unset_game_currency_goal(self, game_id):
@@ -172,13 +198,16 @@ class Currency_Service:
         goal = int(currency_amount.data[1])
 
         if new_value >= goal:
+            # if goal reached, unset it
             goal_data = {
                 "Goal": goal
             }
 
+            unset_goal = self.unset_game_currency_goal(game_id)
+
             return Result.ok(
                 code="CURRENCY_UPDATED_AND_GOAL_REACHED",
-                message=currency_amount.message,
+                message=unset_goal.message,
                 data = goal_data
             )
         

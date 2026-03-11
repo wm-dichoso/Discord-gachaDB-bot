@@ -1447,7 +1447,8 @@ class DatabaseManager:
         try:
             with self.connection:        
                 cur = self.connection.cursor()
-                cur.execute("UPDATE currency_balance SET 'goal' = ? WHERE game_id = ?", (goal, game_id,))
+                cur.execute("UPDATE currency_balance SET 'goal' = ? WHERE game_id = ? RETURNING currency", (goal, game_id,))
+                res = cur.fetchone()
                 if not cur.rowcount > 0:
                     return Result.fail(
                             code="SET_CURRENCY_GOAL_FAILED",
@@ -1456,7 +1457,8 @@ class DatabaseManager:
                 else:
                     return Result.ok(
                         code="CURRENCY_GOAL_UPDATED",
-                        message="Currency goal for the game updated successfully"
+                        message="Currency goal for the game updated successfully",
+                        data=res
                     )
                    
         except sqlite3.Error as e:
@@ -1699,7 +1701,7 @@ class DatabaseManager:
                 error=str(e)
             )
 
-    # get weekly income for the game, 
+    # get stats
     def get_weekly_income(self, game_id):
         if not self.is_connected():
             return Result.fail(
@@ -1744,7 +1746,6 @@ class DatabaseManager:
                 error=str(e)
             )
         
-    # get monthly income for the game, 
     def get_monthly_income(self, game_id):
         if not self.is_connected():
             return Result.fail(
@@ -1779,6 +1780,50 @@ class DatabaseManager:
                     return Result.ok(
                         code="FETCHED_MONTHLY_INCOME",
                         message="Fetched monthly income for the game in the db.",
+                        data=res
+                    )
+                    
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
+        
+    def get_last_30days_income(self, game_id):
+        if not self.is_connected():
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't get last 30days income for the game: Failed to connect to the database"
+            ) 
+        
+        # check if currency already exists first 
+        if not self.currency_for_game_exists(game_id):
+            return Result.fail(
+                code="CURRENCY_DOES_NOT_EXISTS",
+                message="Couldn't get last 30days income for the game: Currency for the game does not exists"
+            )
+        
+        try:
+            with self.connection:        
+                cur = self.connection.cursor()
+                cur.execute("""
+                    SELECT SUM(amount)
+                    FROM currency_logs
+                    WHERE game_id = ?
+                    AND action = 'add'
+                    AND timestamp >= datetime('now', '-30 days');
+                            """, (game_id,))
+                res = cur.fetchone()
+                if res is None:
+                    return Result.fail(
+                            code="GET_MONTHLY_INCOME_FAILED",
+                            message="Failed to get the last 30days income for the game"
+                        )
+                else:
+                    return Result.ok(
+                        code="FETCHED_MONTHLY_INCOME",
+                        message="Fetched last 30days income for the game in the db.",
                         data=res
                     )
                     
