@@ -223,7 +223,24 @@ def setup_game_commands(bot, service: ServicesProtocol):
                 "⚠ SERVICE ERROR:"+ str(currency_goal.message), 
                 delete_after=20)
 
-        await ctx.send(currency_goal.message)
+        # goal data to embed
+        goal_value = currency_goal.data["Currency_Goal"]
+        current_balance = currency_goal.data["Current_balance"]
+        days_needed = int(currency_goal.data["Estimate_days_needed"])
+        rounded_off_days = round(days_needed)
+        
+        build_embed = (
+            SimpleEmbed(
+                title = "Currency Goal Established",
+                color = 0x00AE86
+            )
+        )
+        build_embed.add_field(name="Currency Goal: ", value=goal_value)
+        build_embed.add_field(name="Current Balance: ", value=current_balance)
+        build_embed.add_field(name="Estimate days needed to reach: ", value=rounded_off_days)
+        embed = build_embed.build()
+
+        await ctx.send(embed=embed)
         
     @bot.command(name="done_goal")
     async def unset_currency_goal(ctx):
