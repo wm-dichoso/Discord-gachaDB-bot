@@ -111,6 +111,7 @@ class DatabaseManager:
                     "currency"	INTEGER,
                     "pull_token"	INTEGER,
                     "goal"	INTEGER,
+                    "pull_value"	INTEGER,
                     PRIMARY KEY("id" AUTOINCREMENT),
                     FOREIGN KEY("game_id") REFERENCES "" on DELETE CASCADE
                 );
@@ -1419,6 +1420,42 @@ class DatabaseManager:
                 else:
                     return Result.ok(
                         code="CURRENCY_ADDED",
+                        message="Currency for the game added successfully"
+                    )
+                   
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
+        
+    def add_game_pull_value(self, game_id, pull_value):
+        if not self.is_connected():
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't add currency's pull value to the game: Failed to connect to the database"
+            ) 
+        
+        # check if currency already exists first 
+        if not self.currency_for_game_exists(game_id):
+            return Result.fail(
+                code="CURRENCY_ALREADY_EXISTS",
+                message="Couldn't add currency's pull value to the game: A currency for the game already exists"
+            )
+        
+        try:
+            with self.connection:        
+                cur = self.connection.cursor()
+                cur.execute("UPDATE currency_balance SET 'pull_value' = ? WHERE game_id = ?", (pull_value, game_id, ))
+                if not cur.rowcount > 0:
+                    return Result.fail(
+                            code="CURRENCY_ADD_VALUE_FAILED",
+                            message="Couldn't add currency's pull value to the game: Failed to add currency for the game"
+                        )
+                else:
+                    return Result.ok(
+                        code="CURRENCY_PULL_VALUE_ADDED",
                         message="Currency for the game added successfully"
                     )
                    

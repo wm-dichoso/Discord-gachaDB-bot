@@ -58,6 +58,29 @@ class Currency_Service:
             code="GAME_CURRENCY_INSTALLED",
             message=install.message
         )
+    
+    def set_game_pull_value(self, game_id, pull_value):
+        param_e = self.require_params_with_codes({
+            "game_id": game_id,
+            "pull_value": pull_value
+        })
+
+        if param_e:
+            return param_e
+                
+        pull_val = self.db.add_game_pull_value(game_id, pull_value)
+        
+        if not pull_val.success:
+            return Result.fail(
+                code="SET_PULL_VALUE_FAILED",
+                message=pull_val.message,
+                error=pull_val.error
+            )
+
+        return Result.ok(
+            code="SET_GAME_PULL_VALUE_GOAL",
+            message=pull_val.message
+        )
 
     def get_game_currency_info(self, game_id):
         param_e = self.require_params_with_codes({
@@ -351,7 +374,7 @@ class Currency_Service:
         income_data = {
             "Weekly_Income": weekly,
             "Monthly_Income": monthly,
-            "Projected": projection
+            "Projected": round(projection)
         }
 
         return Result.ok(

@@ -207,6 +207,23 @@ def setup_game_commands(bot, service: ServicesProtocol):
                 delete_after=20)
 
         await ctx.send(currency_install.message)
+    
+    @bot.command(name="cur-pullval")
+    async def currency_add_pull_val(ctx, pull_val):
+        game_info = service.game_service.get_game_for_channel(ctx.channel.id)
+        if not game_info.success:
+            return await ctx.send(
+                "⚠ SERVICE ERROR:"+ str(game_info.message), 
+                delete_after=20)        
+        game_id = game_info.data['Game_ID']
+        
+        pull_val = service.currency_service.set_game_pull_value(game_id, pull_val)
+        if not pull_val.success:
+            return await ctx.send(
+                "⚠ SERVICE ERROR:"+ str(pull_val.message), 
+                delete_after=20)
+
+        await ctx.send(pull_val.message)
 
     @bot.command(name="goal")
     async def set_currency_goal(ctx, goal: int):
@@ -356,7 +373,7 @@ def setup_game_commands(bot, service: ServicesProtocol):
         view.message = message
 
     # statistics
-    @bot.command(name="cur-stats")
+    @bot.command(name="cur-income")
     async def currency_statistic(ctx):
         game_info = service.game_service.get_game_for_channel(ctx.channel.id)
         if not game_info.success:
