@@ -299,22 +299,44 @@ def setup_game_commands(bot, service: ServicesProtocol):
                 "⚠ SERVICE ERROR:"+ str(amount_update.message), 
                 delete_after=20)
         
-        if amount_update.data is not None:
+        cur_data = amount_update.data
+        
+        if "Goal" in cur_data:
             build_embed = (
                 SimpleEmbed(
                     title = "Goal Reached",
                     color = 0x00AE86
                 )
             )
-            currency_goal = str(amount_update.data['Goal'])
-            embed_title = "Currency Goal of "+ currency_goal
-            content = "is now Reached"
-            build_embed.add_field(embed_title, content)
+
+            currency_goal = str(cur_data['Goal'])
+            pull_tokens = str(cur_data['Pull_tokens'])
+
+            goal_title = "Currency Goal of "+ currency_goal
+            goal_content = "is now Reached"
+            build_embed.add_field(goal_title, goal_content)
+
+            pull_avail_title = "You now have " + pull_tokens + " tokens"
+            pull_content = "Available for pulling"
+            build_embed.add_field(pull_avail_title, pull_content)
+
             embed = build_embed.build()
             await ctx.send(content=amount_update.message, embed=embed)
             return
 
-        await ctx.send(amount_update.message)
+        build_embed = (
+            SimpleEmbed(
+                title = "Currency Updated!",
+                color = 0x00AE86
+            )
+        )
+
+        tokens = str(cur_data)
+        title = "You now have " + tokens + " tokens"
+        content = "Available for pulling"
+        build_embed.add_field(title, content)
+        embed = build_embed.build()
+        await ctx.send(content=amount_update.message, embed=embed)
         
     @bot.command(name="cur-token")
     async def currency_update_token(ctx, *, args:str):
@@ -341,7 +363,6 @@ def setup_game_commands(bot, service: ServicesProtocol):
 
         await ctx.send(token_update.message)
 
-    # logs on every action like spending or pulling. figure it out how or where to put this logging <- figured it out, logs on service.
     @bot.command(name="cur-logs")
     async def currency_history(ctx):
         game_info = service.game_service.get_game_for_channel(ctx.channel.id)

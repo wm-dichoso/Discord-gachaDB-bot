@@ -1599,7 +1599,7 @@ class DatabaseManager:
         try:
             with self.connection:        
                 cur = self.connection.cursor()
-                cur.execute("SELECT currency, goal FROM currency_balance WHERE game_id = ?", (game_id,))
+                cur.execute("SELECT currency, goal, pull_value FROM currency_balance WHERE game_id = ?", (game_id,))
                 old_val = cur.fetchone()
 
                 cur.execute("UPDATE currency_balance SET 'currency' = ? WHERE game_id = ?", (amount, game_id,))

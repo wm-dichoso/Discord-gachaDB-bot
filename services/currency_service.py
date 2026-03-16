@@ -202,14 +202,12 @@ class Currency_Service:
                 message=currency_amount.message,
                 error=currency_amount.error
             )
-        
-        old_amount_value = currency_amount.data[0]
+        old_amount_value, recorded_goal, pull_value = map(int, currency_amount.data)
 
         # log if spending or adding to currency
-        old_value = int(old_amount_value)
-        new_value = int(amount)
+        new_amount_value = int(amount)
 
-        difference = new_value - old_value
+        difference = new_amount_value - old_amount_value
 
         if difference < 0:
             self.log_currency_action(game_id, abs(difference), "spend", reason)
@@ -217,13 +215,16 @@ class Currency_Service:
         elif difference > 0:
             self.log_currency_action(game_id, difference, "add", reason)
         
-        # check if goal is reached
-        goal = int(currency_amount.data[1])
+        # how many pulls on current saved amount
+        pulls = round(new_amount_value / pull_value)
 
-        if new_value >= goal:
-            # if goal reached, unset it
+        # check if goal is reached
+        goal = int(recorded_goal)
+
+        if goal != 0 and new_amount_value >= goal:
             goal_data = {
-                "Goal": goal
+                "Goal": goal,
+                "Pull_tokens": pulls
             }
 
             unset_goal = self.unset_game_currency_goal(game_id)
@@ -236,7 +237,8 @@ class Currency_Service:
         
         return Result.ok(
             code="UPDATE_CURRENCY_AMOUNT_SUCCESSFULLY",
-            message=currency_amount.message
+            message=currency_amount.message,
+            data=pulls
         )
         
     def update_currency_token(self, game_id, token, reason):
