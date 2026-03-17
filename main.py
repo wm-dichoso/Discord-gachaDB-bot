@@ -73,8 +73,11 @@ async def h(ctx):
 # incase you forgot to close db on browser XD
 @bot.command()
 async def connect(ctx):
-    db.connect_db()
-    await ctx.send("Trying to connect to the database")
+    conn = db.connect_db()
+    if conn.code == "DB_CONNECTED":
+        await ctx.send("Connected to the db")
+    else:
+        await ctx.send("Couldn't Connect to the db")
 
 # run the bot
 bot.run(BOT_TOKEN)

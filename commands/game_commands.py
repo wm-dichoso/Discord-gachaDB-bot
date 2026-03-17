@@ -224,9 +224,19 @@ def setup_game_commands(bot, service: ServicesProtocol):
                 delete_after=20)
 
         await ctx.send(pull_val.message)
+    
 
+    # remaking currency goal now with type so we can set goal with token not just amount 
     @bot.command(name="goal")
-    async def set_currency_goal(ctx, goal: int):
+    async def set_game_currency_goal(ctx, *, args:str):
+        try:
+            type, amount = parse_csv_args(args, 2)            
+        except ValueError:
+            await ctx.send(
+                "⚠ WARNING Command Format: *.goal* `Currency Type **[token]** / **[cur]**`, `Amount`", 
+                delete_after=20)
+            return
+        
         game_info = service.game_service.get_game_for_channel(ctx.channel.id)
         if not game_info.success:
             return await ctx.send(
@@ -234,7 +244,7 @@ def setup_game_commands(bot, service: ServicesProtocol):
                 delete_after=20)        
         game_id = game_info.data['Game_ID']
         
-        currency_goal = service.currency_service.set_game_currency_goal(game_id, goal)
+        currency_goal = service.currency_service.set_new_currency_goal(game_id, type, amount)
         if not currency_goal.success:
             return await ctx.send(
                 "⚠ SERVICE ERROR:"+ str(currency_goal.message), 
@@ -243,8 +253,7 @@ def setup_game_commands(bot, service: ServicesProtocol):
         # goal data to embed
         goal_value = currency_goal.data["Currency_Goal"]
         current_balance = currency_goal.data["Current_balance"]
-        days_needed = int(currency_goal.data["Estimate_days_needed"])
-        rounded_off_days = round(days_needed)
+        days_needed = currency_goal.data["Estimate_days_needed"]
         
         build_embed = (
             SimpleEmbed(
@@ -254,11 +263,11 @@ def setup_game_commands(bot, service: ServicesProtocol):
         )
         build_embed.add_field(name="Currency Goal: ", value=goal_value)
         build_embed.add_field(name="Current Balance: ", value=current_balance)
-        build_embed.add_field(name="Estimate days needed to reach: ", value=rounded_off_days)
+        build_embed.add_field(name="Estimate days needed to reach: ", value=days_needed)
         embed = build_embed.build()
 
         await ctx.send(embed=embed)
-        
+
     @bot.command(name="done_goal")
     async def unset_currency_goal(ctx):
         game_info = service.game_service.get_game_for_channel(ctx.channel.id)
@@ -395,7 +404,7 @@ def setup_game_commands(bot, service: ServicesProtocol):
 
     # statistics
     @bot.command(name="cur-income")
-    async def currency_statistic(ctx):
+    async def currency_income(ctx):
         game_info = service.game_service.get_game_for_channel(ctx.channel.id)
         if not game_info.success:
             return await ctx.send(
@@ -412,7 +421,8 @@ def setup_game_commands(bot, service: ServicesProtocol):
         # weekly, monthly stats, and monthly projection
         weekly = currency_income.data["Weekly_Income"]
         monthly = currency_income.data["Monthly_Income"]
-        projected = currency_income.data["Projected"]
+        projected = currency_income.data["Projected_Income"]        
+        projected_pulls = currency_income.data["Projected_Pulls"]
         
         # Embed for stats
         build_embed = (
@@ -424,6 +434,7 @@ def setup_game_commands(bot, service: ServicesProtocol):
         build_embed.add_field(name="Weekly Income: ", value=weekly)
         build_embed.add_field(name="Monthly Income: ", value=monthly)
         build_embed.add_field(name="This Month Projected Income: ", value=projected)
+        build_embed.add_field(name="Projected Pulls for the month: ", value=projected_pulls)
         embed = build_embed.build()
 
         await ctx.send(embed=embed)

@@ -113,26 +113,33 @@ class Currency_Service:
             data=game_currency
         )
 
-    def set_game_currency_goal(self, game_id, goal):
+    def set_new_currency_goal(self, game_id, type, goal):
         param_e = self.require_params_with_codes({
             "game_id": game_id,
+            "type": type,
             "goal": goal
         })
 
         if param_e:
             return param_e
         
-        # set goal, return the current balance, then compute how much time needed for the goal
-        currency_goal = self.db.set_currency_goal(game_id, goal)
-        
-        if not currency_goal.success:
+        # check what type, set goal, calculate how days to reach
+
+        if type != "token" and type != "cur":
             return Result.fail(
                 code="SET_CURRENCY_GOAL_FAILED",
-                message=currency_goal.message,
-                error=currency_goal.error
+                message="Goal Type does not match the requirements of the command"
             )
         
-        current_balance = currency_goal.data[0]
+        currency_goal = self.db.set_new_currency_goal(game_id, type, goal)
+        if not currency_goal.success:
+                return Result.fail(
+                    code="SET_CURRENCY_GOAL_FAILED",
+                    message=currency_goal.message,
+                    error=currency_goal.error
+                )
+        
+        current_balance, pull_value = map(int, currency_goal.data)
         
         # get average for the last 30 days for computation
         month_income = self.db.get_last_30days_income(game_id)
@@ -146,10 +153,20 @@ class Currency_Service:
         last_30days_income = int(month_income.data[0] or 0)
         average_income = last_30days_income / 30
         
-        # compute for days needed to reach the goal
-        goal_needed = goal - current_balance
-        days_needed = goal_needed / average_income
+        if type == "cur":
+            # compute for days needed to reach the goal
+            goal_needed = int(goal) - current_balance
         
+        elif type == "token":
+            goal_to_pull_val = int(goal) * pull_value
+            goal_needed = goal_to_pull_val - current_balance
+            
+        days_needed = round(goal_needed / average_income)
+
+        if days_needed < 0:
+            days_needed = "You already have sufficient amount to reach this goal"
+            self.unset_game_currency_goal(game_id)        
+
         goal_data = {
             "Currency_Goal" : goal,
             "Current_balance": current_balance,
@@ -337,7 +354,8 @@ class Currency_Service:
             data=currency_log_list
         )
 
-    # get weekly income, monthly income, projected monthly income
+    # STATS: [1] weekly income, monthly income, projected monthly income
+    # [2] monthly spend, 
     def get_currency_income(self, game_id):
         param_e = self.require_params_with_codes({
             "game_id": game_id
@@ -364,6 +382,15 @@ class Currency_Service:
                 error=monthly_income.error
             )
         
+        pull_val = self.db.get_currency_pull_value(game_id)
+        
+        if not pull_val.success:
+            return Result.fail(
+                code="GET_PULL_VALUE_FAILED",
+                message=pull_val.message,
+                error=pull_val.error
+            )
+        
         today = datetime.today()
         current_day = today.day
         days_in_month = calendar.monthrange(today.year, today.month)[1]
@@ -371,16 +398,41 @@ class Currency_Service:
         weekly = int(weekly_income.data[0])
         monthly = int(monthly_income.data[0])
         projection = (monthly / current_day) * days_in_month
+        pull_value = int(pull_val.data[0])
+        projected_pulls = projection / pull_value
         
-        # projected = (current_month_income / current_day_of_month) * total_days_in_month
         income_data = {
             "Weekly_Income": weekly,
             "Monthly_Income": monthly,
-            "Projected": round(projection)
+            "Projected_Income": round(projection),
+            "Projected_Pulls": round(projected_pulls)
         }
 
         return Result.ok(
             code="INCOME_DATA_RETRIEVED",
             message="Income data for the month successfully calculated",
             data=income_data
+        )
+    
+    # do this later 
+    def get_currency_spent(self, game_id):
+        param_e = self.require_params_with_codes({
+            "game_id": game_id
+        })
+
+        if param_e:
+            return param_e
+                
+        monthly_spending = self.db.get_monthly_spending(game_id)
+        
+        if not monthly_spending.success:
+            return Result.fail(
+                code="GET_MONTHLY_SPENDING_FAILED",
+                message=monthly_spending.message,
+                error=monthly_spending.error
+            )
+
+        return Result.ok(
+            code="INCOME_DATA_RETRIEVED",
+            message="Income data for the month successfully calculated"            
         )

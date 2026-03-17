@@ -1505,6 +1505,45 @@ class DatabaseManager:
                 error=str(e)
             )
 
+    # set goal for the game, display how many currency need for the goal.
+    def set_new_currency_goal(self, game_id, type, goal):
+        if not self.is_connected():
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't set currency goal: Failed to connect to the database"
+            ) 
+        
+        # check if currency already exists first 
+        if not self.currency_for_game_exists(game_id):
+            return Result.fail(
+                code="CURRENCY_DOES_NOT_EXISTS",
+                message="Currency for the game does not exists"
+            )
+        
+        try:
+            with self.connection:        
+                cur = self.connection.cursor()
+                cur.execute("UPDATE currency_balance SET 'goal' = ?, 'goal_type' = ? WHERE game_id = ? RETURNING currency, pull_value", (goal, type, game_id,))
+                res = cur.fetchone()
+                if not cur.rowcount > 0:
+                    return Result.fail(
+                            code="SET_CURRENCY_GOAL_FAILED",
+                            message="Failed to set currency goal for the game"
+                        )
+                else:
+                    return Result.ok(
+                        code="CURRENCY_GOAL_UPDATED",
+                        message="Currency goal for the game updated successfully",
+                        data=res
+                    )
+                   
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
+        
     # just set the currency 0 as goal is reached / failed to reach 
     def unset_currency_goal(self, game_id):
         if not self.is_connected():
@@ -1523,7 +1562,7 @@ class DatabaseManager:
         try:
             with self.connection:        
                 cur = self.connection.cursor()
-                cur.execute("UPDATE currency_balance SET 'goal' = 0 WHERE game_id = ?", (game_id,))
+                cur.execute("UPDATE currency_balance SET 'goal' = 0, goal_type = NULL WHERE game_id = ?", (game_id,))
                 if not cur.rowcount > 0:
                     return Result.fail(
                             code="UNSET_CURRENCY_GOAL_FAILED",
@@ -1565,7 +1604,7 @@ class DatabaseManager:
                 if res is None:
                     return Result.fail(
                             code="GET_CURRENCY_FAILED",
-                            message="Failed to unset currency goal for the game"
+                            message="Failed to get currency for the game"
                         )
                 else:
                     return Result.ok(
@@ -1581,7 +1620,7 @@ class DatabaseManager:
                 error=str(e)
             )
 
-    # used or added currency so update the game currency  -- TODO: service area check if spending or adding amounts!!
+    # used or added currency so update the game currency 
     def update_currency_amount(self, game_id, amount):
         if not self.is_connected():
             return Result.fail(
@@ -1871,6 +1910,88 @@ class DatabaseManager:
                 error=str(e)
             )
     
+    def get_currency_pull_value(self, game_id):
+        if not self.is_connected():
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't get currency pull value for the game: Failed to connect to the database"
+            ) 
+        
+        # check if currency already exists first 
+        if not self.currency_for_game_exists(game_id):
+            return Result.fail(
+                code="CURRENCY_DOES_NOT_EXISTS",
+                message="Currency for the game does not exists"
+            )
+        
+        try:
+            with self.connection:        
+                cur = self.connection.cursor()
+                cur.execute("SELECT pull_value FROM currency_balance WHERE game_id = ?", (game_id,))
+                res = cur.fetchone()
+                if res is None:
+                    return Result.fail(
+                            code="GET_CURRENCY_FAILED",
+                            message="Failed to get currency pull value for the game"
+                        )
+                else:
+                    return Result.ok(
+                        code="GET_CURRENCY",
+                        message="Currency pull value for the game fetched successfully",
+                        data=res
+                    )
+                   
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
+    
+    # to be used ???
+    def get_monthly_spending(self, game_id):
+        if not self.is_connected():
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't get last 30days spending for the game: Failed to connect to the database"
+            ) 
+        
+        # check if currency already exists first 
+        if not self.currency_for_game_exists(game_id):
+            return Result.fail(
+                code="CURRENCY_DOES_NOT_EXISTS",
+                message="Couldn't get last 30days spending for the game: Currency for the game does not exists"
+            )
+        
+        try:
+            with self.connection:        
+                cur = self.connection.cursor()
+                cur.execute("""
+                    SELECT SUM(amount)
+                    FROM currency_logs
+                    WHERE game_id = ?
+                    AND action = 'spend'
+                    AND timestamp >= datetime('now', '-30 days');
+                            """, (game_id,))
+                res = cur.fetchone()
+                if res is None:
+                    return Result.fail(
+                            code="GET_MONTHLY_SPENDING_FAILED",
+                            message="Failed to get the last 30days spending for the game"
+                        )
+                else:
+                    return Result.ok(
+                        code="FETCHED_MONTHLY_SPENDING",
+                        message="Fetched last 30days spending for the game in the db.",
+                        data=res
+                    )
+                    
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
     #endregion
     
 
