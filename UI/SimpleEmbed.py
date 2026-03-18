@@ -15,7 +15,7 @@ class SimpleEmbed:
 
     def add_field(self, name: str, value: str, inline: bool = False):
         self.embed.add_field(name=name, value=value, inline=inline)
-        return self  # allows chaining
+        return self  
 
     def set_footer(self, text: str):
         self.embed.set_footer(text=text)

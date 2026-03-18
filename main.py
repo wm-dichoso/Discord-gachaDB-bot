@@ -12,6 +12,8 @@ from services import Services
 from commands.game_commands import setup_game_commands
 from commands.banner_commands import setup_banner_commands
 from commands.session_commands import setup_session_commands
+from commands.currency_commands import setup_currency_commands
+from commands.stats_commands import setup_stats_commands
 
 # load all this?
 load_dotenv()
@@ -55,7 +57,6 @@ async def on_command_error(ctx, error):
 
     if isinstance(error, commands.CommandInvokeError):
         await ctx.send("❌ An internal error occurred.")
-        # Optional: log the real error
         raise error.original
 
     await ctx.send("❌ An unexpected error occurred.")
@@ -64,6 +65,8 @@ async def on_command_error(ctx, error):
 setup_game_commands(bot, services)
 setup_banner_commands(bot, services)
 setup_session_commands(bot, services)
+setup_currency_commands(bot, services)
+setup_stats_commands(bot, services)
 
 # just try command XD
 @bot.command()

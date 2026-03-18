@@ -33,7 +33,6 @@ class Currency_Service:
     # 1: add currency for a game, 2: set a currency goal for the game, 3: unset goal
     # 4: get the currency info for a game, 5: update the currency amount, 6: update currency token
     # 7: log currency actions, 8: get the game currency logs, 
-    # 9: INCOME calculation <-- TODO: figure this out, calculate per week or something
 
     def install_game_currency(self, game_id, currency, pull_token):
         param_e = self.require_params_with_codes({
@@ -99,12 +98,15 @@ class Currency_Service:
                 error=currency.error
             )
 
-        cur, pull_token, goal = currency.data
+        cur, pull_token, goal, goal_type, pull_val = currency.data
+        pull_count = (cur / pull_val) + pull_token
+        goal_str = str(goal) + " **(" + str(goal_type) + ")**"
 
         game_currency = {
             "Game_Currency": cur,
             "Pull_Tokens": pull_token, 
-            "Goal": goal
+            "Pull_Count": round(pull_count),
+            "Goal": goal_str
         }
 
         return Result.ok(
@@ -139,7 +141,8 @@ class Currency_Service:
                     error=currency_goal.error
                 )
         
-        current_balance, pull_value = map(int, currency_goal.data)
+        balance, pull_token, pull_value = map(int, currency_goal.data)
+        current_balance = (pull_token * pull_value) + balance
         
         # get average for the last 30 days for computation
         month_income = self.db.get_last_30days_income(game_id)
@@ -152,7 +155,8 @@ class Currency_Service:
         
         last_30days_income = int(month_income.data[0] or 0)
         average_income = last_30days_income / 30
-        
+        goal_str = str(goal)
+
         if type == "cur":
             # compute for days needed to reach the goal
             goal_needed = int(goal) - current_balance
@@ -160,17 +164,21 @@ class Currency_Service:
         elif type == "token":
             goal_to_pull_val = int(goal) * pull_value
             goal_needed = goal_to_pull_val - current_balance
+            goal_str = goal_str + " Tokens / **(" + str(goal_needed) + ")**"
             
         days_needed = round(goal_needed / average_income)
 
         if days_needed < 0:
-            days_needed = "You already have sufficient amount to reach this goal"
-            self.unset_game_currency_goal(game_id)        
+            days_needed = "You already have sufficient currency to reach this goal"
+            self.unset_game_currency_goal(game_id)
 
+        balance_str = str(balance) + " + (" + str(pull_token) + " tokens)"
+        days_needed_str = str(days_needed) + " days"
+        
         goal_data = {
-            "Currency_Goal" : goal,
-            "Current_balance": current_balance,
-            "Estimate_days_needed": days_needed
+            "Currency_Goal" : goal_str,
+            "Current_balance": balance_str,
+            "Estimate_days_needed": days_needed_str
         }
 
         return Result.ok(

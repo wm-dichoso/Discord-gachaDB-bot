@@ -5,6 +5,7 @@ from services.pull_service import Pull_Service
 from services.session_service import Session_Service
 from services.settings_service import Setting_Service
 from services.currency_service import Currency_Service
+from services.stats_service import Statistics_Service
 from database_manager import DatabaseManager
 
 class ServicesProtocol(Protocol):
@@ -15,3 +16,4 @@ class ServicesProtocol(Protocol):
     settings_service: Setting_Service
     session_service: Session_Service
     currency_service: Currency_Service
+    stats_service: Statistics_Service

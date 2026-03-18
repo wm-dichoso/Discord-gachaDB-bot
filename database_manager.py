@@ -1394,6 +1394,8 @@ class DatabaseManager:
     #endregion
 
     #region For the currency logging !!!
+    # log pull currency of a game, and set a goal for the game's currency
+
     def add_game_currency(self, game_id, currency, pull_token):
         if not self.is_connected():
             return Result.fail(
@@ -1466,7 +1468,7 @@ class DatabaseManager:
                 error=str(e)
             )
 
-    # set goal for the game, display how many currency need for the goal.
+    # OLD : set goal for the game, display how many currency need for the goal. 
     def set_currency_goal(self, game_id, goal):
         if not self.is_connected():
             return Result.fail(
@@ -1505,7 +1507,6 @@ class DatabaseManager:
                 error=str(e)
             )
 
-    # set goal for the game, display how many currency need for the goal.
     def set_new_currency_goal(self, game_id, type, goal):
         if not self.is_connected():
             return Result.fail(
@@ -1523,7 +1524,7 @@ class DatabaseManager:
         try:
             with self.connection:        
                 cur = self.connection.cursor()
-                cur.execute("UPDATE currency_balance SET 'goal' = ?, 'goal_type' = ? WHERE game_id = ? RETURNING currency, pull_value", (goal, type, game_id,))
+                cur.execute("UPDATE currency_balance SET 'goal' = ?, 'goal_type' = ? WHERE game_id = ? RETURNING currency, pull_token, pull_value", (goal, type, game_id,))
                 res = cur.fetchone()
                 if not cur.rowcount > 0:
                     return Result.fail(
@@ -1544,7 +1545,6 @@ class DatabaseManager:
                 error=str(e)
             )
         
-    # just set the currency 0 as goal is reached / failed to reach 
     def unset_currency_goal(self, game_id):
         if not self.is_connected():
             return Result.fail(
@@ -1580,8 +1580,45 @@ class DatabaseManager:
                 message="SQLite error during X",
                 error=str(e)
             )
-
-    # get and display game currency. how many pulls can be made. how much chance to trigger a ssr with current pull amount
+    
+    def get_currency_pull_value(self, game_id):
+        if not self.is_connected():
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't get currency pull value for the game: Failed to connect to the database"
+            ) 
+        
+        # check if currency already exists first 
+        if not self.currency_for_game_exists(game_id):
+            return Result.fail(
+                code="CURRENCY_DOES_NOT_EXISTS",
+                message="Currency for the game does not exists"
+            )
+        
+        try:
+            with self.connection:        
+                cur = self.connection.cursor()
+                cur.execute("SELECT pull_value FROM currency_balance WHERE game_id = ?", (game_id,))
+                res = cur.fetchone()
+                if res is None:
+                    return Result.fail(
+                            code="GET_CURRENCY_FAILED",
+                            message="Failed to get currency pull value for the game"
+                        )
+                else:
+                    return Result.ok(
+                        code="GET_CURRENCY",
+                        message="Currency pull value for the game fetched successfully",
+                        data=res
+                    )
+                   
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
+    
     def get_currency_for_game(self, game_id):
         if not self.is_connected():
             return Result.fail(
@@ -1599,7 +1636,7 @@ class DatabaseManager:
         try:
             with self.connection:        
                 cur = self.connection.cursor()
-                cur.execute("SELECT currency, pull_token, goal FROM currency_balance WHERE game_id = ?", (game_id,))
+                cur.execute("SELECT currency, pull_token, goal, goal_type, pull_value FROM currency_balance WHERE game_id = ?", (game_id,))
                 res = cur.fetchone()
                 if res is None:
                     return Result.fail(
@@ -1620,7 +1657,6 @@ class DatabaseManager:
                 error=str(e)
             )
 
-    # used or added currency so update the game currency 
     def update_currency_amount(self, game_id, amount):
         if not self.is_connected():
             return Result.fail(
@@ -1661,7 +1697,6 @@ class DatabaseManager:
                 error=str(e)
             ) 
         
-    # used or added currency tickets so update the game currency
     def update_currency_token(self, game_id, tickets):
         if not self.is_connected():
             return Result.fail(
@@ -1701,7 +1736,6 @@ class DatabaseManager:
                 error=str(e)
             ) 
     
-    # log adding or spending the currency of a game
     def log_currency_action(self, game_id, amount, action, reason):
         if not self.is_connected():
             return Result.fail(
@@ -1738,7 +1772,6 @@ class DatabaseManager:
                 error=str(e)
             )
 
-    # get all the logs on the game currency 
     def get_game_currency_logs(self, game_id):
         if not self.is_connected():
             return Result.fail(
@@ -1910,44 +1943,6 @@ class DatabaseManager:
                 error=str(e)
             )
     
-    def get_currency_pull_value(self, game_id):
-        if not self.is_connected():
-            return Result.fail(
-                code="DB_CONNECTION_FAILED",
-                message="Couldn't get currency pull value for the game: Failed to connect to the database"
-            ) 
-        
-        # check if currency already exists first 
-        if not self.currency_for_game_exists(game_id):
-            return Result.fail(
-                code="CURRENCY_DOES_NOT_EXISTS",
-                message="Currency for the game does not exists"
-            )
-        
-        try:
-            with self.connection:        
-                cur = self.connection.cursor()
-                cur.execute("SELECT pull_value FROM currency_balance WHERE game_id = ?", (game_id,))
-                res = cur.fetchone()
-                if res is None:
-                    return Result.fail(
-                            code="GET_CURRENCY_FAILED",
-                            message="Failed to get currency pull value for the game"
-                        )
-                else:
-                    return Result.ok(
-                        code="GET_CURRENCY",
-                        message="Currency pull value for the game fetched successfully",
-                        data=res
-                    )
-                   
-        except sqlite3.Error as e:
-            return Result.fail(
-                code="SQLITE_ERROR",
-                message="SQLite error during X",
-                error=str(e)
-            )
-    
     # to be used ???
     def get_monthly_spending(self, game_id):
         if not self.is_connected():
@@ -1993,7 +1988,52 @@ class DatabaseManager:
                 error=str(e)
             )
     #endregion
-    
+    #region For Statistics !!!
+    def get_game_pulls_and_SSR(self, game_id):
+        if not self.is_connected():
+            return Result.fail(
+                code="DB_CONNECTION_FAILED",
+                message="Couldn't get pulls and ssr for the game: Failed to connect to the database"
+            ) 
+        
+        # check if currency already exists first 
+        if not self.game_exists(game_id):
+            return Result.fail(
+                code="GAME_DOES_NOT_EXISTS",
+                message="Couldn't get pulls and ssr for the game: the game does not exists"
+            )
+        
+        try:
+            with self.connection:        
+                cur = self.connection.cursor()
+                cur.execute("""
+                    SELECT 
+                        COUNT(*) AS total_ssr,
+                        COALESCE(SUM(pity), 0) AS total_pulls
+                    FROM pull_history
+                    WHERE game_id = ?;
+                            """, (game_id,))
+                res = cur.fetchone()
+                if res is None:
+                    return Result.fail(
+                            code="GET_GAME_PULL_OVERVIEW_FAILED",
+                            message="Failed to get the pulls and ssr for the game"
+                        )
+                else:
+                    return Result.ok(
+                        code="FETCHED_GAME_PULL_OVERVIEW",
+                        message="Fetched pulls and ssr for the game in the db.",
+                        data=res
+                    )
+                    
+        except sqlite3.Error as e:
+            return Result.fail(
+                code="SQLITE_ERROR",
+                message="SQLite error during X",
+                error=str(e)
+            )
+
+    #endregion
 
     #region for the settings table !!
 
